@@ -1,0 +1,65 @@
+:root {
+  --bg: #f7f5ef;
+  --text: #1f2937;
+  --accent: #c2410c;
+  --card: #ffffff;
+  --line: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top right, #fff8e8 0%, var(--bg) 60%);
+  color: var(--text);
+}
+
+.container {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 4rem 1.25rem;
+}
+
+.eyebrow {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+h1 {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  margin: 0.25rem 0 1rem;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  max-width: 62ch;
+  color: #374151;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.1rem;
+}
+
+.card h2 {
+  margin-top: 0;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.card p {
+  margin-bottom: 0;
+  line-height: 1.45;
+}
