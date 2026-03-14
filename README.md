@@ -4,8 +4,7 @@ Starter site for your investment pitch deck microsite.
 
 ## Run locally
 
-Open 
-afile:///Users/justiselasley/Desktop/Desktop Cloud/Codex Projects/the-spoonbill/index.html in a browser.
+Open `index.html` in a browser.
 
 ## Next edits
 
