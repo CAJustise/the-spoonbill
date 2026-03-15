@@ -950,6 +950,33 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
     display_order: 5,
   });
 
+  const legacyCategoryTargets: Record<string, string> = {
+    'Signature Cocktails': signatureCategoryId,
+    'Happy Hour Specials': happyHourCategoryId,
+    'Cocktail Flights': flightsCategoryId,
+    'Classic Cocktails': classicsCategoryId,
+  };
+
+  for (const category of categories) {
+    if (category.menu_type !== 'drinks') continue;
+    const targetCategoryId = legacyCategoryTargets[category.name];
+    if (!targetCategoryId || category.id === targetCategoryId) continue;
+
+    for (const item of items) {
+      if (item.category_id === category.id) {
+        item.category_id = targetCategoryId;
+        item.updated_at = now;
+        changed = true;
+      }
+    }
+
+    if (category.active !== false) {
+      category.active = false;
+      category.updated_at = now;
+      changed = true;
+    }
+  }
+
   const existingDrinkByKey = new Map<string, PlainObject>();
   const existingDrinksByName = new Map<string, PlainObject[]>();
   items
