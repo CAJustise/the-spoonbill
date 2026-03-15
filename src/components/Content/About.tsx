@@ -20,7 +20,7 @@ const About: React.FC = () => {
 
         <div className="my-12">
           <img
-            src="https://zdtgolvtlxiqxnsfvltr.supabase.co/storage/v1/object/public/images/33rrenborir.png"
+            src="https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/venue/multiimage.png"
             alt="Tropical lounge interior"
             className="w-full h-64 object-cover rounded-lg shadow-lg"
           />

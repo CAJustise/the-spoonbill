@@ -16,6 +16,11 @@ interface Event {
   display_order: number;
 }
 
+const EVENT_IMAGE_FALLBACKS: Record<string, string> = {
+  'Island Mixology Class': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
+  'Pacific Rim Tasting Night': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
+};
+
 const Events: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +66,7 @@ const Events: React.FC = () => {
             <div key={event.id} className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg">
               <div className="aspect-w-16 aspect-h-9 relative">
                 <img
-                  src={event.image_url}
+                  src={event.image_url || EVENT_IMAGE_FALLBACKS[event.title] || ''}
                   alt={event.title}
                   className="w-full h-48 object-cover"
                 />

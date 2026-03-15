@@ -295,7 +295,7 @@ const buildDefaultDb = () => {
         date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
         time: '19:00:00',
         price: 85,
-        image_url: null,
+        image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
         booking_type: 'class',
         booking_url: null,
         display_order: 1,
@@ -309,7 +309,7 @@ const buildDefaultDb = () => {
         date: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
         time: '18:30:00',
         price: 125,
-        image_url: null,
+        image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
         booking_type: 'reservation',
         booking_url: null,
         display_order: 2,
@@ -493,6 +493,10 @@ const parseSalaryRange = (rawSalaryRange: any) => {
 
 const migrateDb = (db: PlainObject) => {
   let changed = false;
+  const eventImageByTitle: Record<string, string> = {
+    'Island Mixology Class': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
+    'Pacific Rim Tasting Night': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
+  };
 
   if (Array.isArray(db.job_listings)) {
     db.job_listings = db.job_listings.map((job: PlainObject) => {
@@ -542,6 +546,20 @@ const migrateDb = (db: PlainObject) => {
       }
 
       return nextJob;
+    });
+  }
+
+  if (Array.isArray(db.events)) {
+    db.events = db.events.map((event: PlainObject) => {
+      const nextEvent = { ...event };
+      const targetImageUrl = eventImageByTitle[nextEvent.title];
+
+      if (targetImageUrl && nextEvent.image_url !== targetImageUrl) {
+        nextEvent.image_url = targetImageUrl;
+        changed = true;
+      }
+
+      return nextEvent;
     });
   }
 
