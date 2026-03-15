@@ -58,6 +58,12 @@ export const CUISINE_SUBCATEGORY_SEEDS = [
     "name": "Small Plates",
     "parent_id": "cat_cuisine",
     "display_order": 8
+  },
+  {
+    "id": "cat_food_dessert",
+    "name": "Desserts",
+    "parent_id": "cat_cuisine",
+    "display_order": 9
   }
 ] as const;
 

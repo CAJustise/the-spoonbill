@@ -1148,6 +1148,13 @@ const normalizeDrinkKey = (name: string, price: number | null | undefined) =>
 
 const normalizeFoodName = (value: string) => value.replace(/\s+/g, ' ').trim();
 
+const CURATED_DESSERT_ITEMS = [
+  { name: 'Chocolate Lava Cake with Macadamia Nut Brittle', price: 14 },
+  { name: 'Passion Fruit Creme Brulee', price: 14 },
+  { name: 'Coconut Tres Leches Cake', price: 14 },
+  { name: 'Grilled Pineapple with Rum Caramel and Coconut Ice Cream', price: 14 },
+] as const;
+
 const CODA_SIGNATURE_DRINKS = new Set([
   'Aloha Spirit Mai Tai',
   'Feathered Frenzy Zombie',
@@ -2069,7 +2076,7 @@ const ensureCodaFoodImport = (db: PlainObject) => {
     cat_food_bowls_rolls:
       cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
     cat_food_dessert:
-      cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+      cuisineSubcategoryIds.get('cat_food_dessert') || 'cat_food_dessert',
     cat_food_prefix: null,
   };
 
@@ -2098,8 +2105,8 @@ const ensureCodaFoodImport = (db: PlainObject) => {
     rolls: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
     'bowls / rolls':
       cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
-    dessert: cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
-    desserts: cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    dessert: cuisineSubcategoryIds.get('cat_food_dessert') || 'cat_food_dessert',
+    desserts: cuisineSubcategoryIds.get('cat_food_dessert') || 'cat_food_dessert',
     prefix: null,
   };
 
@@ -2284,6 +2291,122 @@ const ensureCodaFoodImport = (db: PlainObject) => {
     }
     if (itemChanged) {
       existing.updated_at = now;
+      changed = true;
+    }
+  }
+
+  const dessertCategoryId = cuisineSubcategoryIds.get('cat_food_dessert') || 'cat_food_dessert';
+  const curatedDessertNameSet = new Set(
+    CURATED_DESSERT_ITEMS.map((dessert) => normalizeFoodName(dessert.name).toLowerCase()),
+  );
+  const legacySeedDessertNameSet = new Set(
+    CODA_FOOD_ITEM_SEEDS
+      .filter((seedItem) => seedItem.category_id === 'cat_food_dessert')
+      .map((seedItem) => normalizeFoodName(seedItem.name).toLowerCase()),
+  );
+
+  const findFoodItemByName = (name: string) =>
+    items.find((item) => {
+      if (item.menu_type !== 'food') return false;
+      const itemName = normalizeFoodName(String(item.name || '')).toLowerCase();
+      return itemName === name.toLowerCase();
+    });
+
+  for (const curatedDessert of CURATED_DESSERT_ITEMS) {
+    const normalizedName = normalizeFoodName(curatedDessert.name);
+    const nameKey = normalizedName.toLowerCase();
+    const seedMatch = CODA_FOOD_ITEM_SEEDS.find(
+      (item) => normalizeFoodName(item.name).toLowerCase() === nameKey,
+    );
+    const seededDescription =
+      typeof seedMatch?.description === 'string' && seedMatch.description.trim()
+        ? seedMatch.description.trim()
+        : null;
+
+    let existing = findFoodItemByName(normalizedName);
+    if (!existing) {
+      const dietText = `${normalizedName} ${seededDescription || ''}`.toLowerCase();
+      const inferredVegan = /\bvegan\b/.test(dietText);
+      const inferredVegetarian = inferredVegan || /\bvegetarian\b/.test(dietText);
+
+      existing = {
+        id: `item_${slug(`food-${normalizedName}`)}`,
+        name: normalizedName,
+        description: seededDescription,
+        price: curatedDessert.price,
+        bottle_price: null,
+        image_url: null,
+        menu_type: 'food',
+        show_price: true,
+        show_description: true,
+        active: true,
+        ingredients: null,
+        allergens: null,
+        is_vegetarian: inferredVegetarian,
+        is_vegan: inferredVegan,
+        is_gluten_free: false,
+        spice_level: null,
+        portion_size: null,
+        serves: null,
+        alcohol_content: null,
+        garnish: null,
+        category_id: dessertCategoryId,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(existing);
+      existingFoodByName.set(nameKey, existing);
+      changed = true;
+      continue;
+    }
+
+    let itemChanged = false;
+    if (existing.active !== true) {
+      existing.active = true;
+      itemChanged = true;
+    }
+    if (existing.menu_type !== 'food') {
+      existing.menu_type = 'food';
+      itemChanged = true;
+    }
+    if (existing.category_id !== dessertCategoryId) {
+      existing.category_id = dessertCategoryId;
+      itemChanged = true;
+    }
+    if (existing.price !== curatedDessert.price) {
+      existing.price = curatedDessert.price;
+      itemChanged = true;
+    }
+    if ((existing.description === undefined || existing.description === null || existing.description === '') && seededDescription) {
+      existing.description = seededDescription;
+      itemChanged = true;
+    }
+    if (existing.show_price !== true) {
+      existing.show_price = true;
+      itemChanged = true;
+    }
+    if (existing.show_description !== true) {
+      existing.show_description = true;
+      itemChanged = true;
+    }
+    if (!existing.created_at) {
+      existing.created_at = now;
+      itemChanged = true;
+    }
+    if (itemChanged) {
+      existing.updated_at = now;
+      changed = true;
+    }
+  }
+
+  for (const item of items) {
+    if (item.menu_type !== 'food') continue;
+    const normalizedName = normalizeFoodName(String(item.name || '')).toLowerCase();
+    if (!legacySeedDessertNameSet.has(normalizedName)) continue;
+    if (curatedDessertNameSet.has(normalizedName)) continue;
+    if (item.active !== false) {
+      item.active = false;
+      item.updated_at = now;
       changed = true;
     }
   }
