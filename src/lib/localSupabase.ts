@@ -965,7 +965,7 @@ const buildDefaultDb = () => {
         time: '18:30:00',
         price: 125,
         image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
-        booking_type: 'reservation',
+        booking_type: 'class',
         booking_url: null,
         booking_capacity: 28,
         display_order: 2,
@@ -2548,6 +2548,10 @@ const migrateDb = (db: PlainObject) => {
     'Island Mixology Class': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
     'Pacific Rim Tasting Night': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
   };
+  const eventBookingDefaultsByTitle: Record<string, { booking_type: 'class' | 'event' | 'reservation'; booking_capacity: number }> = {
+    'Island Mixology Class': { booking_type: 'class', booking_capacity: 16 },
+    'Pacific Rim Tasting Night': { booking_type: 'class', booking_capacity: 28 },
+  };
 
   if (Array.isArray(db.job_listings)) {
     db.job_listings = db.job_listings.map((job: PlainObject) => {
@@ -2610,6 +2614,12 @@ const migrateDb = (db: PlainObject) => {
         changed = true;
       }
 
+      const bookingDefaults = eventBookingDefaultsByTitle[nextEvent.title];
+      if (bookingDefaults && nextEvent.booking_type !== bookingDefaults.booking_type) {
+        nextEvent.booking_type = bookingDefaults.booking_type;
+        changed = true;
+      }
+
       const inferredCapacity =
         nextEvent.booking_type === 'class'
           ? 16
@@ -2625,6 +2635,16 @@ const migrateDb = (db: PlainObject) => {
         (typeof nextEvent.booking_capacity !== 'number' || Number.isNaN(nextEvent.booking_capacity))
       ) {
         nextEvent.booking_capacity = inferredCapacity;
+        changed = true;
+      }
+
+      if (
+        bookingDefaults &&
+        (typeof nextEvent.booking_capacity !== 'number' ||
+          Number.isNaN(nextEvent.booking_capacity) ||
+          nextEvent.booking_capacity !== bookingDefaults.booking_capacity)
+      ) {
+        nextEvent.booking_capacity = bookingDefaults.booking_capacity;
         changed = true;
       }
 
