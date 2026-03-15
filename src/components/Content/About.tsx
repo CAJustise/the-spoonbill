@@ -22,7 +22,7 @@ const About: React.FC = () => {
           <img
             src="https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/venue/multiimage.png"
             alt="Tropical lounge interior"
-            className="w-full h-64 object-cover rounded-lg shadow-lg"
+            className="w-full h-auto max-h-[70vh] object-contain rounded-lg shadow-lg bg-gray-100"
           />
         </div>
 
