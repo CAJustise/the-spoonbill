@@ -1311,7 +1311,7 @@ const WorkforceManagement: React.FC = () => {
           wage_rate: primaryRoleRate,
         })
         .eq('employee_id', employeeId)
-        .is('role_id', null);
+        .eq('role_id', null);
       if (setPrimaryRoleShiftError) {
         // Non-blocking fallback in case no null-role shifts exist.
       }

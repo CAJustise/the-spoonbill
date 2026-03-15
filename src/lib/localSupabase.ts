@@ -3949,6 +3949,10 @@ class LocalQueryBuilder {
     return this;
   }
 
+  is(column: string, value: any) {
+    return this.eq(column, value);
+  }
+
   order(column: string, options?: { ascending?: boolean }) {
     this.orderBy.push({ column, ascending: options?.ascending !== false });
     return this;
