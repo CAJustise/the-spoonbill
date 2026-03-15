@@ -4,6 +4,9 @@ import {
   UtensilsCrossed, 
   GlassWater, 
   Calendar, 
+  CalendarCheck2,
+  CalendarRange,
+  GraduationCap,
   Image, 
   Briefcase, 
   Building2, 
@@ -96,6 +99,57 @@ const Dashboard: React.FC = () => {
               </div>
               <p className="text-gray-600 font-garamond">
                 Manage drink menu items and pricing.
+              </p>
+            </Link>
+          </div>
+        </div>
+
+        {/* Content Management Section */}
+        <div className="mb-12">
+          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">BOH Operations</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Link
+              to="/admin/boh/reservations"
+              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
+                  <CalendarCheck2 className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-display font-bold text-gray-900">Reservations</h3>
+              </div>
+              <p className="text-gray-600 font-garamond">
+                Manage reservation bookings and capacity limits.
+              </p>
+            </Link>
+
+            <Link
+              to="/admin/boh/events-parties"
+              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
+                  <CalendarRange className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-display font-bold text-gray-900">Event / Parties</h3>
+              </div>
+              <p className="text-gray-600 font-garamond">
+                Track private event inquiries and schedule capacity.
+              </p>
+            </Link>
+
+            <Link
+              to="/admin/boh/classes"
+              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
+                  <GraduationCap className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-display font-bold text-gray-900">Classes</h3>
+              </div>
+              <p className="text-gray-600 font-garamond">
+                Schedule classes and manage attendee signups.
               </p>
             </Link>
           </div>

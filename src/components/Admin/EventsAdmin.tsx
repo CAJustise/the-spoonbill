@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit2, Trash2, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
 
 interface Event {
   id: string;
@@ -12,6 +12,7 @@ interface Event {
   image_url: string;
   booking_type: 'class' | 'event' | 'reservation' | null;
   booking_url: string | null;
+  booking_capacity?: number;
   active: boolean;
   display_order: number;
 }
@@ -56,7 +57,8 @@ const EventsAdmin: React.FC = () => {
       price: formData.get('price') as string || null,
       image_url: formData.get('image_url') as string,
       booking_type: formData.get('booking_type') as 'class' | 'event' | 'reservation' | null,
-      booking_url: formData.get('booking_url') as string || null,
+      booking_url: null,
+      booking_capacity: Number(formData.get('booking_capacity') || 0) || null,
       active: formData.get('active') === 'on',
       display_order: parseInt(formData.get('display_order') as string) || 0,
     };
@@ -216,14 +218,15 @@ const EventsAdmin: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Booking URL
+                  Booking Capacity
                 </label>
                 <input
-                  type="url"
-                  name="booking_url"
-                  defaultValue={editingEvent?.booking_url || ''}
+                  type="number"
+                  min={0}
+                  name="booking_capacity"
+                  defaultValue={editingEvent?.booking_capacity ?? 0}
                   className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="e.g., https://calendly.com/spoonbill/event"
+                  placeholder="e.g., 24"
                 />
               </div>
 
@@ -300,6 +303,9 @@ const EventsAdmin: React.FC = () => {
                   Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Capacity
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -322,6 +328,9 @@ const EventsAdmin: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="capitalize">{event.booking_type || 'None'}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {event.booking_capacity ?? '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {event.active ? (

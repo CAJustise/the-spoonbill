@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, CalendarRange } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import type { ReservationPanelType } from '../../types/booking';
 
 interface Event {
   id: string;
@@ -12,8 +13,13 @@ interface Event {
   image_url: string;
   booking_type: 'class' | 'event' | 'reservation' | null;
   booking_url: string | null;
+  booking_capacity?: number;
   active: boolean;
   display_order: number;
+}
+
+interface EventsProps {
+  onBook?: (intent: { type: ReservationPanelType; eventId?: string }) => void;
 }
 
 const EVENT_IMAGE_FALLBACKS: Record<string, string> = {
@@ -21,7 +27,7 @@ const EVENT_IMAGE_FALLBACKS: Record<string, string> = {
   'Pacific Rim Tasting Night': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
 };
 
-const Events: React.FC = () => {
+const Events: React.FC<EventsProps> = ({ onBook }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -97,12 +103,21 @@ const Events: React.FC = () => {
                 <div className="text-gray-600 font-garamond mb-6 whitespace-pre-line">
                   {event.description}
                 </div>
-                {event.booking_url && (
+                {event.booking_type && (
                   <div className="flex gap-4">
-                    <a
-                      href={event.booking_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onBook?.({
+                          type:
+                            event.booking_type === 'class'
+                              ? 'classes'
+                              : event.booking_type === 'event'
+                                ? 'events'
+                                : 'dining',
+                          eventId: event.booking_type === 'class' ? event.id : undefined,
+                        })
+                      }
                       className="flex items-center justify-center px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 transition-colors"
                     >
                       {event.booking_type === 'class' && (
@@ -120,10 +135,10 @@ const Events: React.FC = () => {
                       {event.booking_type === 'reservation' && (
                         <>
                           <Calendar className="h-5 w-5 mr-2" />
-                          Make Reservation
+                          Reserve Spot
                         </>
                       )}
-                    </a>
+                    </button>
                   </div>
                 )}
               </div>
@@ -139,15 +154,14 @@ const Events: React.FC = () => {
           <p className="text-gray-600 font-garamond mb-6">
             Looking to host a special celebration, corporate event, or private party? The Spoonbill Lounge offers a unique tropical setting for your next gathering. Our team will work with you to create a customized experience that your guests will never forget.
           </p>
-          <a
-            href="https://calendly.com/spoonbill/private-event"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => onBook?.({ type: 'events' })}
             className="inline-flex items-center justify-center px-6 py-3 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 transition-colors"
           >
             <CalendarRange className="h-5 w-5 mr-2" />
-            Schedule a Consultation
-          </a>
+            Book Private Event
+          </button>
         </div>
       </div>
     </div>

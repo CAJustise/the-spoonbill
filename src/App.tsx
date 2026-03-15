@@ -32,6 +32,11 @@ import AdminLayout from './components/Admin/AdminLayout';
 import Dashboard from './components/Admin/Dashboard';
 import ImageManager from './components/Admin/ImageManager';
 import Settings from './components/Admin/Settings';
+import HostDashboard from './components/Admin/HostDashboard';
+import BOHReservations from './components/Admin/BOHReservations';
+import BOHEventParties from './components/Admin/BOHEventParties';
+import BOHClasses from './components/Admin/BOHClasses';
+import type { ReservationIntent, ReservationPanelType } from './types/booking';
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,6 +49,16 @@ function App() {
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isCareersOpen, setIsCareersOpen] = useState(false);
   const [isInvestorOpen, setIsInvestorOpen] = useState(false);
+  const [reservationIntent, setReservationIntent] = useState<ReservationIntent | null>(null);
+
+  const openReservations = (type: ReservationPanelType = 'dining', eventId?: string) => {
+    setReservationIntent({
+      requestId: Date.now(),
+      type,
+      eventId,
+    });
+    setIsReservationsOpen(true);
+  };
 
   return (
     <Router basename={import.meta.env.BASE_URL}>
@@ -63,11 +78,16 @@ function App() {
               />
               <Hero 
                 onOpenMenu={() => setIsMenuOpen(true)} 
-                onOpenReservations={() => setIsReservationsOpen(true)}
+                onOpenReservations={() => openReservations('dining')}
               />
               <MenuDrawer isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
               <ContentDrawer isOpen={isEventsOpen} onClose={() => setIsEventsOpen(false)} title="Events">
-                <Events />
+                <Events
+                  onBook={(nextIntent) => {
+                    setIsEventsOpen(false);
+                    openReservations(nextIntent.type, nextIntent.eventId);
+                  }}
+                />
               </ContentDrawer>
               <ContentDrawer isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} title="About Us">
                 <About />
@@ -76,7 +96,7 @@ function App() {
                 <Contact 
                   onOpenReservations={() => {
                     setIsContactOpen(false);
-                    setIsReservationsOpen(true);
+                    openReservations('dining');
                   }}
                   onOpenEvents={() => {
                     setIsContactOpen(false);
@@ -88,7 +108,7 @@ function App() {
                 <Visit />
               </ContentDrawer>
               <ContentDrawer isOpen={isReservationsOpen} onClose={() => setIsReservationsOpen(false)} title="Reservations">
-                <ReservationsDrawer />
+                <ReservationsDrawer intent={reservationIntent} />
               </ContentDrawer>
               <ContentDrawer isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} title="Terms of Use">
                 <TermsOfUse />
@@ -110,7 +130,8 @@ function App() {
         />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/careers/apply" element={<ApplicationForm />} />
-        <Route path="/admin/login" element={<LoginPage />} />
+        <Route path="/admin/login" element={<LoginPage portal="admin" />} />
+        <Route path="/host/login" element={<LoginPage portal="host" />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout><Dashboard /></AdminLayout>} />
@@ -124,6 +145,9 @@ function App() {
         
         <Route path="/admin/events" element={<AdminLayout><EventsAdmin /></AdminLayout>} />
         <Route path="/admin/images" element={<AdminLayout><ImageManager /></AdminLayout>} />
+        <Route path="/admin/boh/reservations" element={<AdminLayout><BOHReservations /></AdminLayout>} />
+        <Route path="/admin/boh/events-parties" element={<AdminLayout><BOHEventParties /></AdminLayout>} />
+        <Route path="/admin/boh/classes" element={<AdminLayout><BOHClasses /></AdminLayout>} />
         
         {/* Career Management Routes */}
         <Route path="/admin/jobs" element={<AdminLayout><JobsAdmin /></AdminLayout>} />
@@ -135,6 +159,12 @@ function App() {
         <Route path="/admin/investor-submissions" element={<AdminLayout><InvestorSubmissionsAdmin /></AdminLayout>} />
         
         <Route path="/admin/settings" element={<AdminLayout><Settings /></AdminLayout>} />
+
+        {/* Host Routes */}
+        <Route path="/host" element={<AdminLayout portal="host"><HostDashboard /></AdminLayout>} />
+        <Route path="/host/reservations" element={<AdminLayout portal="host"><BOHReservations /></AdminLayout>} />
+        <Route path="/host/events-parties" element={<AdminLayout portal="host"><BOHEventParties /></AdminLayout>} />
+        <Route path="/host/classes" element={<AdminLayout portal="host"><BOHClasses /></AdminLayout>} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

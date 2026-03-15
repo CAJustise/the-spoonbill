@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import logoNavy from '../../assets/SpoonbillLogoDark.png';
+import { canAccessPortal, deriveRoleResolution, getRoleIdsForUser, type BohPortal } from '../../lib/bohRoles';
 
-const LoginPage: React.FC = () => {
+interface LoginPageProps {
+  portal?: BohPortal;
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,9 +30,24 @@ const LoginPage: React.FC = () => {
 
       if (error) throw error;
 
-      // If login is successful and we have a session
       if (data.session) {
-        // Navigate to the admin dashboard
+        const roleIds = await getRoleIdsForUser(data.session.user.id);
+        const roleResolution = deriveRoleResolution(roleIds);
+
+        if (!canAccessPortal(roleIds, portal)) {
+          await supabase.auth.signOut();
+          throw new Error(
+            portal === 'admin'
+              ? 'This account does not have Admin access. Please use Host Login.'
+              : 'This account does not have BOH access.',
+          );
+        }
+
+        if (portal === 'host' && roleResolution.isHost && !roleResolution.isAdmin) {
+          navigate('/host');
+          return;
+        }
+
         navigate('/admin');
         return;
       }
@@ -57,7 +77,7 @@ const LoginPage: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mt-6 text-center text-3xl font-display font-bold text-gray-900"
         >
-          Admin Login
+          {portal === 'host' ? 'Host Login' : 'Admin Login'}
         </motion.h2>
       </div>
 
@@ -139,6 +159,23 @@ const LoginPage: React.FC = () => {
               </button>
             </div>
           </form>
+          <div className="mt-6 border-t border-gray-100 pt-4 text-center">
+            {portal === 'host' ? (
+              <p className="text-sm text-gray-600">
+                Need full access?{' '}
+                <Link to="/admin/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
+                  Admin Login
+                </Link>
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Host team access?{' '}
+                <Link to="/host/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
+                  Host Login
+                </Link>
+              </p>
+            )}
+          </div>
         </div>
       </motion.div>
     </div>

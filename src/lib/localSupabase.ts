@@ -27,8 +27,12 @@ const ALIAS_TABLE_MAP: Record<string, string> = {
   role: 'admin_roles',
 };
 
+const DEFAULT_ADMIN_USER_ID = 'admin_local_owner';
 const DEFAULT_ADMIN_EMAIL = 'admin@spoonbill.local';
 const DEFAULT_ADMIN_PASSWORD = 'spoonbill-admin';
+const DEFAULT_HOST_USER_ID = 'host_local_user';
+const DEFAULT_HOST_EMAIL = 'host@spoonbill.local';
+const DEFAULT_HOST_PASSWORD = 'spoonbill-host';
 const TASTING_MENU_MIGRATION_FLAG = 'tastings_seed_20260315';
 
 const nowIso = () => new Date().toISOString();
@@ -948,6 +952,7 @@ const buildDefaultDb = () => {
         image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
         booking_type: 'class',
         booking_url: null,
+        booking_capacity: 16,
         display_order: 1,
         active: true,
         created_at: nowIso(),
@@ -962,6 +967,7 @@ const buildDefaultDb = () => {
         image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
         booking_type: 'reservation',
         booking_url: null,
+        booking_capacity: 28,
         display_order: 2,
         active: true,
         created_at: nowIso(),
@@ -970,6 +976,7 @@ const buildDefaultDb = () => {
     time_slots: buildDefaultTimeSlots(),
     reservations: [],
     event_bookings: [],
+    class_bookings: [],
     tables: [],
     job_departments: [
       { id: 'dept_service', name: 'Service', description: 'Front of house hospitality team', active: true, created_at: nowIso() },
@@ -1043,14 +1050,21 @@ const buildDefaultDb = () => {
     admin_roles: [
       { id: 'role_owner', name: 'Owner', description: 'Full BOH access', created_at: nowIso() },
       { id: 'role_manager', name: 'Manager', description: 'Operational BOH access', created_at: nowIso() },
+      { id: 'role_host', name: 'Host', description: 'Reservations, events, and classes BOH access', created_at: nowIso() },
     ],
     admin_permissions: [],
     admin_role_permissions: [],
     admin_user_roles: [
       {
         id: 'aur_owner',
-        user_id: 'admin_local_owner',
+        user_id: DEFAULT_ADMIN_USER_ID,
         role_id: 'role_owner',
+        created_at: nowIso(),
+      },
+      {
+        id: 'aur_host',
+        user_id: DEFAULT_HOST_USER_ID,
+        role_id: 'role_host',
         created_at: nowIso(),
       },
     ],
@@ -1059,9 +1073,15 @@ const buildDefaultDb = () => {
 
 const defaultUsers = () => [
   {
-    id: 'admin_local_owner',
+    id: DEFAULT_ADMIN_USER_ID,
     email: DEFAULT_ADMIN_EMAIL,
     password: DEFAULT_ADMIN_PASSWORD,
+    created_at: nowIso(),
+  },
+  {
+    id: DEFAULT_HOST_USER_ID,
+    email: DEFAULT_HOST_EMAIL,
+    password: DEFAULT_HOST_PASSWORD,
     created_at: nowIso(),
   },
 ];
@@ -2590,7 +2610,63 @@ const migrateDb = (db: PlainObject) => {
         changed = true;
       }
 
+      const inferredCapacity =
+        nextEvent.booking_type === 'class'
+          ? 16
+          : nextEvent.booking_type === 'event'
+            ? 60
+            : nextEvent.booking_type === 'reservation'
+              ? 28
+              : 0;
+      if (
+        (nextEvent.booking_type === 'class' ||
+          nextEvent.booking_type === 'event' ||
+          nextEvent.booking_type === 'reservation') &&
+        (typeof nextEvent.booking_capacity !== 'number' || Number.isNaN(nextEvent.booking_capacity))
+      ) {
+        nextEvent.booking_capacity = inferredCapacity;
+        changed = true;
+      }
+
       return nextEvent;
+    });
+  }
+
+  if (!Array.isArray(db.class_bookings)) {
+    db.class_bookings = [];
+    changed = true;
+  }
+
+  if (Array.isArray(db.reservations)) {
+    db.reservations = db.reservations.map((reservation: PlainObject) => {
+      if (reservation.status) return reservation;
+      changed = true;
+      return {
+        ...reservation,
+        status: 'pending',
+      };
+    });
+  }
+
+  if (Array.isArray(db.event_bookings)) {
+    db.event_bookings = db.event_bookings.map((booking: PlainObject) => {
+      if (booking.status) return booking;
+      changed = true;
+      return {
+        ...booking,
+        status: 'pending',
+      };
+    });
+  }
+
+  if (Array.isArray(db.class_bookings)) {
+    db.class_bookings = db.class_bookings.map((booking: PlainObject) => {
+      if (booking.status) return booking;
+      changed = true;
+      return {
+        ...booking,
+        status: 'pending',
+      };
     });
   }
 
@@ -2609,6 +2685,114 @@ const migrateDb = (db: PlainObject) => {
   return { db, changed };
 };
 
+const getUserByIdentity = (users: PlainObject[], userId: string, email: string) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  return users.find((candidate) => {
+    const candidateEmail = String(candidate.email || '').trim().toLowerCase();
+    return candidate.id === userId || candidateEmail === normalizedEmail;
+  }) || null;
+};
+
+const ensureDefaultUsers = (users: PlainObject[]) => {
+  let changed = false;
+
+  const adminUser = getUserByIdentity(users, DEFAULT_ADMIN_USER_ID, DEFAULT_ADMIN_EMAIL);
+  if (!adminUser) {
+    users.push({
+      id: DEFAULT_ADMIN_USER_ID,
+      email: DEFAULT_ADMIN_EMAIL,
+      password: DEFAULT_ADMIN_PASSWORD,
+      created_at: nowIso(),
+    });
+    changed = true;
+  }
+
+  const hostUser = getUserByIdentity(users, DEFAULT_HOST_USER_ID, DEFAULT_HOST_EMAIL);
+  if (!hostUser) {
+    users.push({
+      id: DEFAULT_HOST_USER_ID,
+      email: DEFAULT_HOST_EMAIL,
+      password: DEFAULT_HOST_PASSWORD,
+      created_at: nowIso(),
+    });
+    changed = true;
+  }
+
+  return changed;
+};
+
+const ensureRole = (db: PlainObject, role: { id: string; name: string; description: string }) => {
+  if (!Array.isArray(db.admin_roles)) {
+    db.admin_roles = [];
+  }
+
+  const existing = db.admin_roles.find((candidate: PlainObject) => candidate.id === role.id);
+  if (existing) {
+    let changed = false;
+    if (existing.name !== role.name) {
+      existing.name = role.name;
+      changed = true;
+    }
+    if (existing.description !== role.description) {
+      existing.description = role.description;
+      changed = true;
+    }
+    return changed;
+  }
+
+  db.admin_roles.push({
+    ...role,
+    created_at: nowIso(),
+  });
+  return true;
+};
+
+const ensureUserRoleLink = (db: PlainObject, userId: string, roleId: string) => {
+  if (!Array.isArray(db.admin_user_roles)) {
+    db.admin_user_roles = [];
+  }
+
+  const exists = db.admin_user_roles.some(
+    (candidate: PlainObject) => candidate.user_id === userId && candidate.role_id === roleId,
+  );
+
+  if (exists) return false;
+
+  db.admin_user_roles.push({
+    id: createId('aur'),
+    user_id: userId,
+    role_id: roleId,
+    created_at: nowIso(),
+  });
+  return true;
+};
+
+const ensureRoleAssignments = (db: PlainObject, users: PlainObject[]) => {
+  let changed = false;
+
+  if (ensureRole(db, { id: 'role_owner', name: 'Owner', description: 'Full BOH access' })) {
+    changed = true;
+  }
+  if (ensureRole(db, { id: 'role_manager', name: 'Manager', description: 'Operational BOH access' })) {
+    changed = true;
+  }
+  if (ensureRole(db, { id: 'role_host', name: 'Host', description: 'Reservations, events, and classes BOH access' })) {
+    changed = true;
+  }
+
+  const adminUser = getUserByIdentity(users, DEFAULT_ADMIN_USER_ID, DEFAULT_ADMIN_EMAIL);
+  if (adminUser && ensureUserRoleLink(db, adminUser.id, 'role_owner')) {
+    changed = true;
+  }
+
+  const hostUser = getUserByIdentity(users, DEFAULT_HOST_USER_ID, DEFAULT_HOST_EMAIL);
+  if (hostUser && ensureUserRoleLink(db, hostUser.id, 'role_host')) {
+    changed = true;
+  }
+
+  return changed;
+};
+
 class LocalStore {
   db: PlainObject;
   users: PlainObject[];
@@ -2620,6 +2804,15 @@ class LocalStore {
     this.users = loadJson(USERS_KEY, defaultUsers);
     this.session = loadJson(SESSION_KEY, () => null);
     this.files = loadJson(FILES_KEY, () => ({}));
+
+    const usersChanged = ensureDefaultUsers(this.users);
+    if (usersChanged) {
+      this.saveUsers();
+    }
+
+    if (ensureRoleAssignments(this.db, this.users)) {
+      this.saveDb();
+    }
 
     const migration = migrateDb(this.db);
     this.db = migration.db;
@@ -3348,4 +3541,9 @@ export const createLocalSupabaseClient = () => new LocalSupabaseClient(singleton
 export const localAdminDefaults = {
   email: DEFAULT_ADMIN_EMAIL,
   password: DEFAULT_ADMIN_PASSWORD,
+};
+
+export const localHostDefaults = {
+  email: DEFAULT_HOST_EMAIL,
+  password: DEFAULT_HOST_PASSWORD,
 };

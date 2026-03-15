@@ -1,208 +1,414 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Clock, CalendarRange, GlassWater } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import {
+  getSlotAvailability,
+  validateClassCapacity,
+  validateSlotCapacity,
+  type SlotAvailability,
+} from '../../lib/bookingCapacity';
+import type { ReservationIntent, ReservationPanelType } from '../../types/booking';
 
-interface TimeSlot {
-  id: string;
-  start_time: string;
-  end_time: string;
-  capacity: number;
+interface ReservationsDrawerProps {
+  intent?: ReservationIntent | null;
 }
 
-const ReservationsDrawer: React.FC = () => {
-  const [reservationType, setReservationType] = useState<'dining' | 'events'>('dining');
+interface ClassEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  price: string | null;
+  booking_capacity: number;
+  enrolled: number;
+  remaining: number;
+}
+
+const DEFAULT_DINING_FORM = {
+  name: '',
+  email: '',
+  phone: '',
+  specialRequests: '',
+};
+
+const DEFAULT_EVENT_FORM = {
+  name: '',
+  email: '',
+  phone: '',
+  companyName: '',
+  eventType: '',
+  guestCount: 10,
+  duration: 2,
+  budgetRange: '',
+  cateringNeeded: false,
+  barServiceNeeded: false,
+  avEquipmentNeeded: false,
+  setupRequirements: '',
+  specialRequests: '',
+};
+
+const DEFAULT_CLASS_FORM = {
+  name: '',
+  email: '',
+  phone: '',
+  specialRequests: '',
+};
+
+const formatTime = (time: string) => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':');
+  const date = new Date();
+  date.setHours(parseInt(hours || '0', 10));
+  date.setMinutes(parseInt(minutes || '0', 10));
+  date.setSeconds(0);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
+  const [reservationType, setReservationType] = useState<ReservationPanelType>('dining');
   const [step, setStep] = useState(1);
   const [date, setDate] = useState('');
   const [partySize, setPartySize] = useState(2);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
+  const [timeSlots, setTimeSlots] = useState<SlotAvailability[]>([]);
+  const [classEvents, setClassEvents] = useState<ClassEvent[]>([]);
+  const [selectedClassEventId, setSelectedClassEventId] = useState('');
+  const [classGuestCount, setClassGuestCount] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form data for dining reservation
-  const [diningForm, setDiningForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    specialRequests: ''
-  });
+  const [diningForm, setDiningForm] = useState(DEFAULT_DINING_FORM);
+  const [eventForm, setEventForm] = useState(DEFAULT_EVENT_FORM);
+  const [classForm, setClassForm] = useState(DEFAULT_CLASS_FORM);
 
-  // Form data for event booking
-  const [eventForm, setEventForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    companyName: '',
-    eventType: '',
-    guestCount: 10,
-    duration: 2,
-    budgetRange: '',
-    cateringNeeded: false,
-    barServiceNeeded: false,
-    avEquipmentNeeded: false,
-    setupRequirements: '',
-    specialRequests: ''
-  });
+  const selectedClassEvent = useMemo(
+    () => classEvents.find((classEvent) => classEvent.id === selectedClassEventId) || null,
+    [classEvents, selectedClassEventId],
+  );
+
+  const requestedGuestsForTimeSlot = reservationType === 'events' ? eventForm.guestCount : partySize;
 
   useEffect(() => {
-    if (date && partySize) {
-      fetchAvailableTimeSlots();
+    void fetchClassEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!intent) return;
+    setReservationType(intent.type);
+    setStep(1);
+    setError(null);
+    setSelectedTimeSlot('');
+    if (intent.type === 'classes' && intent.eventId) {
+      setSelectedClassEventId(intent.eventId);
     }
-  }, [date, partySize]);
+  }, [intent]);
+
+  useEffect(() => {
+    if (!date || reservationType === 'classes') {
+      setTimeSlots([]);
+      return;
+    }
+    void fetchAvailableTimeSlots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, reservationType]);
+
+  const fetchClassEvents = async () => {
+    try {
+      const [{ data: classes, error: classError }, { data: bookings, error: bookingsError }] = await Promise.all([
+        supabase
+          .from('events')
+          .select('*')
+          .eq('booking_type', 'class')
+          .eq('active', true)
+          .order('date')
+          .order('time'),
+        supabase
+          .from('class_bookings')
+          .select('*'),
+      ]);
+
+      if (classError) throw classError;
+      if (bookingsError) throw bookingsError;
+
+      const enrollmentMap = (Array.isArray(bookings) ? bookings : []).reduce((accumulator, booking) => {
+        const status = String((booking as { status?: unknown }).status || 'pending').toLowerCase();
+        if (status === 'cancelled' || status === 'declined') {
+          return accumulator;
+        }
+        const eventId = String((booking as { event_id?: unknown }).event_id || '');
+        if (!eventId) return accumulator;
+        const guests = Number((booking as { guest_count?: unknown }).guest_count || 0);
+        accumulator[eventId] = (accumulator[eventId] || 0) + guests;
+        return accumulator;
+      }, {} as Record<string, number>);
+
+      const normalizedClasses = (Array.isArray(classes) ? classes : []).map((classEvent) => {
+        const id = String((classEvent as { id?: unknown }).id || '');
+        const capacity = Number((classEvent as { booking_capacity?: unknown }).booking_capacity || 0);
+        const enrolled = enrollmentMap[id] || 0;
+        return {
+          id,
+          title: String((classEvent as { title?: unknown }).title || ''),
+          description: String((classEvent as { description?: unknown }).description || ''),
+          date: String((classEvent as { date?: unknown }).date || ''),
+          time: String((classEvent as { time?: unknown }).time || ''),
+          price: ((classEvent as { price?: unknown }).price as string | null) || null,
+          booking_capacity: capacity,
+          enrolled,
+          remaining: Math.max(0, capacity - enrolled),
+        } satisfies ClassEvent;
+      });
+
+      setClassEvents(normalizedClasses);
+      if (selectedClassEventId && !normalizedClasses.some((classEvent) => classEvent.id === selectedClassEventId)) {
+        setSelectedClassEventId('');
+      }
+    } catch (fetchError) {
+      console.error('Error loading classes:', fetchError);
+      setError('Error loading classes. Please try again.');
+    }
+  };
 
   const fetchAvailableTimeSlots = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get day of week (0-6, where 0 is Sunday)
-      const dayOfWeek = new Date(date).getDay();
+      const bookingType = reservationType === 'events' ? 'events' : 'dining';
+      const availability = await getSlotAvailability(date, bookingType);
+      setTimeSlots(availability);
 
-      const { data: slots, error } = await supabase
-        .from('time_slots')
-        .select('*')
-        .eq('day_of_week', dayOfWeek)
-        .eq('is_event_slot', reservationType === 'events')
-        .eq('active', true)
-        .order('start_time');
-
-      if (error) throw error;
-      setTimeSlots(slots || []);
-
-    } catch (error) {
-      console.error('Error fetching time slots:', error);
+      if (!availability.some((slot) => slot.startTime === selectedTimeSlot)) {
+        setSelectedTimeSlot('');
+      }
+    } catch (fetchError) {
+      console.error('Error fetching time slots:', fetchError);
       setError('Error loading available times. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDiningSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetReservationStepData = () => {
+    setStep(1);
+    setDate('');
+    setSelectedTimeSlot('');
+    setPartySize(2);
+    setEventForm(DEFAULT_EVENT_FORM);
+    setDiningForm(DEFAULT_DINING_FORM);
+  };
+
+  const handleDiningSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error } = await supabase
+      const capacityResult = await validateSlotCapacity(date, selectedTimeSlot, partySize, 'dining');
+      if (!capacityResult.allowed) {
+        setError(capacityResult.message);
+        return;
+      }
+
+      const { error: insertError } = await supabase
         .from('reservations')
-        .insert([{
-          customer_name: diningForm.name,
-          customer_email: diningForm.email,
-          customer_phone: diningForm.phone,
-          party_size: partySize,
-          reservation_date: date,
-          reservation_time: selectedTimeSlot,
-          special_requests: diningForm.specialRequests
-        }])
+        .insert([
+          {
+            customer_name: diningForm.name,
+            customer_email: diningForm.email,
+            customer_phone: diningForm.phone,
+            party_size: partySize,
+            reservation_date: date,
+            reservation_time: selectedTimeSlot,
+            special_requests: diningForm.specialRequests,
+            status: 'pending',
+          },
+        ])
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      // Show success message and reset form
-      alert('Reservation submitted successfully! We will confirm your reservation shortly.');
-      setStep(1);
-      setDiningForm({
-        name: '',
-        email: '',
-        phone: '',
-        specialRequests: ''
-      });
-      setDate('');
-      setPartySize(2);
-      setSelectedTimeSlot('');
-
-    } catch (error) {
-      console.error('Error submitting reservation:', error);
-      setError('Error submitting reservation. Please try again.');
+      alert('Reservation submitted successfully. Our host team will confirm shortly.');
+      resetReservationStepData();
+      await fetchAvailableTimeSlots();
+    } catch (submitError) {
+      console.error('Error submitting reservation:', submitError);
+      setError((submitError as Error).message || 'Error submitting reservation. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEventSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEventSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error } = await supabase
+      const capacityResult = await validateSlotCapacity(date, selectedTimeSlot, eventForm.guestCount, 'events');
+      if (!capacityResult.allowed) {
+        setError(capacityResult.message);
+        return;
+      }
+
+      const { error: insertError } = await supabase
         .from('event_bookings')
-        .insert([{
-          event_type: eventForm.eventType,
-          customer_name: eventForm.name,
-          customer_email: eventForm.email,
-          customer_phone: eventForm.phone,
-          company_name: eventForm.companyName,
-          guest_count: eventForm.guestCount,
-          event_date: date,
-          event_time: selectedTimeSlot,
-          duration_hours: eventForm.duration,
-          budget_range: eventForm.budgetRange,
-          catering_needed: eventForm.cateringNeeded,
-          bar_service_needed: eventForm.barServiceNeeded,
-          av_equipment_needed: eventForm.avEquipmentNeeded,
-          setup_requirements: eventForm.setupRequirements,
-          special_requests: eventForm.specialRequests
-        }])
+        .insert([
+          {
+            event_type: eventForm.eventType || 'Private Event',
+            customer_name: eventForm.name,
+            customer_email: eventForm.email,
+            customer_phone: eventForm.phone,
+            company_name: eventForm.companyName,
+            guest_count: eventForm.guestCount,
+            event_date: date,
+            event_time: selectedTimeSlot,
+            duration_hours: eventForm.duration,
+            budget_range: eventForm.budgetRange,
+            catering_needed: eventForm.cateringNeeded,
+            bar_service_needed: eventForm.barServiceNeeded,
+            av_equipment_needed: eventForm.avEquipmentNeeded,
+            setup_requirements: eventForm.setupRequirements,
+            special_requests: eventForm.specialRequests,
+            status: 'pending',
+          },
+        ])
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      // Show success message and reset form
-      alert('Event booking request submitted successfully! Our events team will contact you shortly.');
-      setStep(1);
-      setEventForm({
-        name: '',
-        email: '',
-        phone: '',
-        companyName: '',
-        eventType: '',
-        guestCount: 10,
-        duration: 2,
-        budgetRange: '',
-        cateringNeeded: false,
-        barServiceNeeded: false,
-        avEquipmentNeeded: false,
-        setupRequirements: '',
-        specialRequests: ''
-      });
-      setDate('');
-      setSelectedTimeSlot('');
-
-    } catch (error) {
-      console.error('Error submitting event booking:', error);
-      setError('Error submitting event booking. Please try again.');
+      alert('Private event request submitted. Our team will contact you shortly.');
+      resetReservationStepData();
+      await fetchAvailableTimeSlots();
+    } catch (submitError) {
+      console.error('Error submitting private event booking:', submitError);
+      setError((submitError as Error).message || 'Error submitting event booking. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const date = new Date();
-    date.setHours(parseInt(hours, 10));
-    date.setMinutes(parseInt(minutes, 10));
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
-    });
+  const handleClassSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (!selectedClassEventId) {
+        setError('Please select a class.');
+        return;
+      }
+
+      const capacityResult = await validateClassCapacity(selectedClassEventId, classGuestCount);
+      if (!capacityResult.allowed) {
+        setError(capacityResult.message);
+        return;
+      }
+
+      const classEvent =
+        selectedClassEvent ||
+        (capacityResult.classEvent
+          ? {
+              id: String((capacityResult.classEvent as { id?: unknown }).id || ''),
+              title: String((capacityResult.classEvent as { title?: unknown }).title || ''),
+              date: String((capacityResult.classEvent as { date?: unknown }).date || ''),
+              time: String((capacityResult.classEvent as { time?: unknown }).time || ''),
+            }
+          : null);
+
+      if (!classEvent) {
+        setError('Selected class could not be found.');
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from('class_bookings')
+        .insert([
+          {
+            event_id: selectedClassEventId,
+            class_title: classEvent.title,
+            class_date: classEvent.date,
+            class_time: classEvent.time,
+            customer_name: classForm.name,
+            customer_email: classForm.email,
+            customer_phone: classForm.phone,
+            guest_count: classGuestCount,
+            special_requests: classForm.specialRequests,
+            status: 'pending',
+          },
+        ])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      alert('Class signup submitted. We will confirm your spot shortly.');
+      setClassForm(DEFAULT_CLASS_FORM);
+      setClassGuestCount(1);
+      await fetchClassEvents();
+    } catch (submitError) {
+      console.error('Error submitting class booking:', submitError);
+      setError((submitError as Error).message || 'Error submitting class signup. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const switchReservationType = (nextType: ReservationPanelType) => {
+    setReservationType(nextType);
+    setStep(1);
+    setSelectedTimeSlot('');
+    setError(null);
+  };
+
+  const renderTimeSlotButtons = () => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {timeSlots.map((slot) => {
+        const enoughCapacity = slot.remaining >= requestedGuestsForTimeSlot;
+        return (
+          <button
+            key={slot.id}
+            type="button"
+            onClick={() => setSelectedTimeSlot(slot.startTime)}
+            disabled={!enoughCapacity}
+            className={`px-3 py-2 rounded-lg border text-left transition-colors ${
+              selectedTimeSlot === slot.startTime
+                ? 'bg-ocean-600 text-white border-ocean-600'
+                : enoughCapacity
+                  ? 'border-gray-300 hover:border-ocean-600'
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            <div>{formatTime(slot.startTime)}</div>
+            <div className={`text-xs ${selectedTimeSlot === slot.startTime ? 'text-ocean-100' : 'text-gray-500'}`}>
+              {slot.remaining} spots left
+            </div>
+          </button>
+        );
+      })}
+      {!timeSlots.length && !loading && (
+        <div className="text-sm text-gray-500 col-span-full">No available times for the selected date.</div>
+      )}
+    </div>
+  );
 
   const renderDiningReservationForm = () => (
     <div className="space-y-8">
       {step === 1 ? (
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(event) => setDate(event.target.value)}
               min={new Date().toISOString().split('T')[0]}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
@@ -210,15 +416,13 @@ const ReservationsDrawer: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Party Size
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Party Size</label>
             <select
               value={partySize}
-              onChange={(e) => setPartySize(parseInt(e.target.value))}
+              onChange={(event) => setPartySize(parseInt(event.target.value, 10))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
             >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(size => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((size) => (
                 <option key={size} value={size}>
                   {size} {size === 1 ? 'Guest' : 'Guests'}
                 </option>
@@ -226,41 +430,20 @@ const ReservationsDrawer: React.FC = () => {
             </select>
           </div>
 
-          {date && partySize && (
+          {date && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Time
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {timeSlots.map(slot => (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => setSelectedTimeSlot(slot.start_time)}
-                    className={`px-4 py-2 rounded-lg border ${
-                      selectedTimeSlot === slot.start_time
-                        ? 'bg-ocean-600 text-white border-ocean-600'
-                        : 'border-gray-300 hover:border-ocean-600'
-                    }`}
-                  >
-                    {formatTime(slot.start_time)}
-                  </button>
-                ))}
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+              {renderTimeSlotButtons()}
             </div>
           )}
 
-          {error && (
-            <div className="text-red-600 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-red-600 text-sm">{error}</div>}
 
           <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setStep(2)}
-              disabled={!date || !partySize || !selectedTimeSlot}
+              disabled={!date || !selectedTimeSlot}
               className="px-6 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-50"
             >
               Continue
@@ -270,61 +453,51 @@ const ReservationsDrawer: React.FC = () => {
       ) : (
         <form onSubmit={handleDiningSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
             <input
               type="text"
               value={diningForm.name}
-              onChange={(e) => setDiningForm(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(event) => setDiningForm((previous) => ({ ...previous, name: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               value={diningForm.email}
-              onChange={(e) => setDiningForm(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(event) => setDiningForm((previous) => ({ ...previous, email: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
               type="tel"
               value={diningForm.phone}
-              onChange={(e) => setDiningForm(prev => ({ ...prev, phone: e.target.value }))}
+              onChange={(event) => setDiningForm((previous) => ({ ...previous, phone: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Special Requests
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
             <textarea
               value={diningForm.specialRequests}
-              onChange={(e) => setDiningForm(prev => ({ ...prev, specialRequests: e.target.value }))}
+              onChange={(event) =>
+                setDiningForm((previous) => ({ ...previous, specialRequests: event.target.value }))
+              }
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
             />
           </div>
 
-          {error && (
-            <div className="text-red-600 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-red-600 text-sm">{error}</div>}
 
           <div className="flex justify-between">
             <button
@@ -352,12 +525,10 @@ const ReservationsDrawer: React.FC = () => {
       {step === 1 ? (
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Event Type
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
             <select
               value={eventForm.eventType}
-              onChange={(e) => setEventForm(prev => ({ ...prev, eventType: e.target.value }))}
+              onChange={(event) => setEventForm((previous) => ({ ...previous, eventType: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             >
@@ -372,13 +543,11 @@ const ReservationsDrawer: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(event) => setDate(event.target.value)}
               min={new Date().toISOString().split('T')[0]}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
@@ -386,15 +555,15 @@ const ReservationsDrawer: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Guest Count
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Guest Count</label>
             <input
               type="number"
-              min="10"
-              max="100"
+              min={10}
+              max={200}
               value={eventForm.guestCount}
-              onChange={(e) => setEventForm(prev => ({ ...prev, guestCount: parseInt(e.target.value) }))}
+              onChange={(event) =>
+                setEventForm((previous) => ({ ...previous, guestCount: parseInt(event.target.value || '10', 10) }))
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
@@ -402,33 +571,12 @@ const ReservationsDrawer: React.FC = () => {
 
           {date && eventForm.eventType && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Time
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {timeSlots.map(slot => (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => setSelectedTimeSlot(slot.start_time)}
-                    className={`px-4 py-2 rounded-lg border ${
-                      selectedTimeSlot === slot.start_time
-                        ? 'bg-ocean-600 text-white border-ocean-600'
-                        : 'border-gray-300 hover:border-ocean-600'
-                    }`}
-                  >
-                    {formatTime(slot.start_time)}
-                  </button>
-                ))}
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+              {renderTimeSlotButtons()}
             </div>
           )}
 
-          {error && (
-            <div className="text-red-600 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-red-600 text-sm">{error}</div>}
 
           <div className="flex justify-end">
             <button
@@ -444,79 +592,69 @@ const ReservationsDrawer: React.FC = () => {
       ) : (
         <form onSubmit={handleEventSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
             <input
               type="text"
               value={eventForm.name}
-              onChange={(e) => setEventForm(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(event) => setEventForm((previous) => ({ ...previous, name: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               value={eventForm.email}
-              onChange={(e) => setEventForm(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(event) => setEventForm((previous) => ({ ...previous, email: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
               type="tel"
               value={eventForm.phone}
-              onChange={(e) => setEventForm(prev => ({ ...prev, phone: e.target.value }))}
+              onChange={(event) => setEventForm((previous) => ({ ...previous, phone: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company Name (if applicable)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name (Optional)</label>
             <input
               type="text"
               value={eventForm.companyName}
-              onChange={(e) => setEventForm(prev => ({ ...prev, companyName: e.target.value }))}
+              onChange={(event) => setEventForm((previous) => ({ ...previous, companyName: event.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Duration (hours)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (hours)</label>
             <input
               type="number"
-              min="2"
-              max="8"
+              min={2}
+              max={10}
               value={eventForm.duration}
-              onChange={(e) => setEventForm(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
+              onChange={(event) =>
+                setEventForm((previous) => ({ ...previous, duration: parseInt(event.target.value || '2', 10) }))
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Budget Range
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Budget Range</label>
             <select
               value={eventForm.budgetRange}
-              onChange={(e) => setEventForm(prev => ({ ...prev, budgetRange: e.target.value }))}
-              className="w- full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+              onChange={(event) => setEventForm((previous) => ({ ...previous, budgetRange: event.target.value }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
               required
             >
               <option value="">Select budget range</option>
@@ -527,77 +665,67 @@ const ReservationsDrawer: React.FC = () => {
             </select>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                id="catering"
                 checked={eventForm.cateringNeeded}
-                onChange={(e) => setEventForm(prev => ({ ...prev, cateringNeeded: e.target.checked }))}
+                onChange={(event) =>
+                  setEventForm((previous) => ({ ...previous, cateringNeeded: event.target.checked }))
+                }
                 className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
               />
-              <label htmlFor="catering" className="text-sm text-gray-700">
-                Catering Service Needed
-              </label>
-            </div>
-
-            <div className="flex items-center gap-2">
+              Catering Service Needed
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                id="bar"
                 checked={eventForm.barServiceNeeded}
-                onChange={(e) => setEventForm(prev => ({ ...prev, barServiceNeeded: e.target.checked }))}
+                onChange={(event) =>
+                  setEventForm((previous) => ({ ...previous, barServiceNeeded: event.target.checked }))
+                }
                 className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
               />
-              <label htmlFor="bar" className="text-sm text-gray-700">
-                Bar Service Needed
-              </label>
-            </div>
-
-            <div className="flex items-center gap-2">
+              Bar Service Needed
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                id="av"
                 checked={eventForm.avEquipmentNeeded}
-                onChange={(e) => setEventForm(prev => ({ ...prev, avEquipmentNeeded: e.target.checked }))}
+                onChange={(event) =>
+                  setEventForm((previous) => ({ ...previous, avEquipmentNeeded: event.target.checked }))
+                }
                 className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
               />
-              <label htmlFor="av" className="text-sm text-gray-700">
-                AV Equipment Needed
-              </label>
-            </div>
+              AV Equipment Needed
+            </label>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Setup Requirements
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Setup Requirements</label>
             <textarea
               value={eventForm.setupRequirements}
-              onChange={(e) => setEventForm(prev => ({ ...prev, setupRequirements: e.target.value }))}
+              onChange={(event) =>
+                setEventForm((previous) => ({ ...previous, setupRequirements: event.target.value }))
+              }
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
-              placeholder="Describe any specific setup needs..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Special Requests
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
             <textarea
               value={eventForm.specialRequests}
-              onChange={(e) => setEventForm(prev => ({ ...prev, specialRequests: e.target.value }))}
+              onChange={(event) =>
+                setEventForm((previous) => ({ ...previous, specialRequests: event.target.value }))
+              }
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
             />
           </div>
 
-          {error && (
-            <div className="text-red-600 text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-red-600 text-sm">{error}</div>}
 
           <div className="flex justify-between">
             <button
@@ -620,49 +748,158 @@ const ReservationsDrawer: React.FC = () => {
     </div>
   );
 
+  const renderClassBookingForm = () => (
+    <form onSubmit={handleClassSubmit} className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Choose Class</label>
+        <select
+          value={selectedClassEventId}
+          onChange={(event) => setSelectedClassEventId(event.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+          required
+        >
+          <option value="">Select a class</option>
+          {classEvents.map((classEvent) => (
+            <option key={classEvent.id} value={classEvent.id}>
+              {classEvent.title} | {classEvent.date} {formatTime(classEvent.time)} | {classEvent.remaining} spots left
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedClassEvent && (
+        <div className="border border-ocean-100 bg-ocean-50/50 rounded-lg p-4 space-y-2">
+          <div className="font-display font-bold text-gray-900">{selectedClassEvent.title}</div>
+          <div className="text-sm text-gray-700">
+            {selectedClassEvent.date} at {formatTime(selectedClassEvent.time)}
+          </div>
+          {selectedClassEvent.price && <div className="text-sm text-gray-700">{selectedClassEvent.price}</div>}
+          <div className="text-sm text-gray-700">
+            {selectedClassEvent.enrolled}/{selectedClassEvent.booking_capacity} enrolled
+          </div>
+          <p className="text-sm text-gray-600">{selectedClassEvent.description}</p>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Guests</label>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          value={classGuestCount}
+          onChange={(event) => setClassGuestCount(parseInt(event.target.value || '1', 10))}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+        <input
+          type="text"
+          value={classForm.name}
+          onChange={(event) => setClassForm((previous) => ({ ...previous, name: event.target.value }))}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <input
+          type="email"
+          value={classForm.email}
+          onChange={(event) => setClassForm((previous) => ({ ...previous, email: event.target.value }))}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+        <input
+          type="tel"
+          value={classForm.phone}
+          onChange={(event) => setClassForm((previous) => ({ ...previous, phone: event.target.value }))}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
+        <textarea
+          value={classForm.specialRequests}
+          onChange={(event) =>
+            setClassForm((previous) => ({ ...previous, specialRequests: event.target.value }))
+          }
+          rows={3}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+        />
+      </div>
+
+      {error && <div className="text-red-600 text-sm">{error}</div>}
+
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={loading || !selectedClassEventId}
+          className="px-6 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-50"
+        >
+          {loading ? 'Submitting...' : 'Submit Class Signup'}
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="space-y-8">
       <div className="prose prose-lg max-w-none">
         <p className="text-xl text-gray-600 font-garamond leading-relaxed">
-          Reserve your spot at The Spoonbill Lounge. Whether you're joining us for dinner, planning a special event, or booking a mixology class, we're here to ensure your experience is exceptional.
+          Reserve your experience at The Spoonbill Lounge. Book dining, private events, and classes directly through
+          our in-house team.
         </p>
 
-        {/* Reservation Type Selector */}
-        <div className="grid grid-cols-2 gap-px bg-gray-200 rounded-lg overflow-hidden my-8">
+        <div className="grid grid-cols-3 gap-px bg-gray-200 rounded-lg overflow-hidden my-8">
           <button
-            onClick={() => {
-              setReservationType('dining');
-              setStep(1);
-            }}
-            className={`py-4 text-lg font-garamond transition-colors ${
-              reservationType === 'dining'
-                ? 'bg-ocean-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+            onClick={() => switchReservationType('dining')}
+            className={`py-4 text-base sm:text-lg font-garamond transition-colors ${
+              reservationType === 'dining' ? 'bg-ocean-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
-            Dining Reservations
+            Reservations
           </button>
           <button
-            onClick={() => {
-              setReservationType('events');
-              setStep(1);
-            }}
-            className={`py-4 text-lg font-garamond transition-colors ${
-              reservationType === 'events'
-                ? 'bg-ocean-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+            onClick={() => switchReservationType('events')}
+            className={`py-4 text-base sm:text-lg font-garamond transition-colors ${
+              reservationType === 'events' ? 'bg-ocean-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
-            Events & Classes
+            Event / Parties
+          </button>
+          <button
+            onClick={() => switchReservationType('classes')}
+            className={`py-4 text-base sm:text-lg font-garamond transition-colors ${
+              reservationType === 'classes' ? 'bg-ocean-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Classes
           </button>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg">
           <h3 className="text-2xl font-display font-bold text-gray-900 mb-4">
-            {reservationType === 'dining' ? 'Make a Reservation' : 'Book an Event'}
+            {reservationType === 'dining'
+              ? 'Make a Reservation'
+              : reservationType === 'events'
+                ? 'Plan a Private Event'
+                : 'Book a Class'}
           </h3>
-          
-          {reservationType === 'dining' ? renderDiningReservationForm() : renderEventBookingForm()}
+
+          {reservationType === 'dining' && renderDiningReservationForm()}
+          {reservationType === 'events' && renderEventBookingForm()}
+          {reservationType === 'classes' && renderClassBookingForm()}
         </div>
       </div>
     </div>
