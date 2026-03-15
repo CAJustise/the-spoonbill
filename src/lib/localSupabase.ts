@@ -812,6 +812,39 @@ const CODA_HAPPY_HOUR_DRINKS = new Set([
   'Sapphire Skies Blue Hawaii',
 ]);
 
+const CODA_FLIGHT_OFFERINGS = [
+  {
+    name: 'Tiki Classic',
+    price: 45,
+    description:
+      'Aloha Spirit Mai Tai, Feathered Frenzy Zombie, and Tropic Wings Singapore Sling.',
+    ingredients: ['Aloha Spirit Mai Tai', 'Feathered Frenzy Zombie', 'Tropic Wings Singapore Sling'],
+  },
+  {
+    name: 'Tropical Fruit Adventure',
+    price: 50,
+    description:
+      'Coral Canopy Reef, Plumed Paradise Pina Colada, and Sapphire Skies Blue Hawaii.',
+    ingredients: ['Coral Canopy Reef', 'Plumed Paradise Pina Colada', 'Sapphire Skies Blue Hawaii'],
+  },
+  {
+    name: 'Spoonbill Signature',
+    price: 55,
+    description:
+      "Flamingo's Fancy Planter's Punch, Jungle Plumage Bird, and Opulent Oasis Pearl Diver.",
+    ingredients: ["Flamingo's Fancy Planter's Punch", 'Jungle Plumage Bird', 'Opulent Oasis Pearl Diver'],
+  },
+] as const;
+
+const CODA_ZERO_PROOF_ADDITIONS = [
+  {
+    name: 'Boylan Bottled Cane Colas',
+    price: 5,
+    description: 'Root Beer, Cane Cola, Ginger Ale, Cream Soda, Black Cherry.',
+    ingredients: ['Root Beer', 'Cane Cola', 'Ginger Ale', 'Cream Soda', 'Black Cherry'],
+  },
+] as const;
+
 const ensureCodaBeverageImport = (db: PlainObject) => {
   if (!Array.isArray(db.menu_categories) || !Array.isArray(db.menu_items)) {
     return false;
@@ -942,9 +975,7 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
         ? happyHourCategoryId
         : isSignature
           ? signatureCategoryId
-          : flightGroup
-            ? flightsCategoryId
-            : classicsCategoryId;
+          : classicsCategoryId;
     const itemKey = normalizeDrinkKey(name, price);
     const existing = existingDrinkByKey.get(itemKey);
 
@@ -1019,6 +1050,129 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       existing.updated_at = now;
       changed = true;
     }
+  }
+
+  const upsertCuratedDrink = (config: {
+    name: string;
+    description: string | null;
+    price: number;
+    category_id: string;
+    ingredients: string[];
+    alcohol_content: number | null;
+    coda_signature: boolean;
+    coda_happy_hour: boolean;
+    coda_flight_group: string | null;
+  }) => {
+    const name = normalizeDrinkName(config.name);
+    const key = normalizeDrinkKey(name, config.price);
+
+    let existing = items.find((item) => {
+      if (item.menu_type !== 'drinks') return false;
+      const itemName = typeof item.name === 'string' ? normalizeDrinkName(item.name) : '';
+      return normalizeDrinkKey(itemName, item.price) === key;
+    });
+
+    if (!existing) {
+      existing = {
+        id: `item_${slug(`${name}-${config.price}`)}`,
+        name,
+        description: config.description,
+        price: config.price,
+        bottle_price: null,
+        image_url: null,
+        menu_type: 'drinks',
+        show_price: true,
+        show_description: true,
+        active: true,
+        ingredients: config.ingredients,
+        alcohol_content: config.alcohol_content,
+        garnish: null,
+        category_id: config.category_id,
+        coda_signature: config.coda_signature,
+        coda_happy_hour: config.coda_happy_hour,
+        coda_flight_group: config.coda_flight_group,
+        allergens: null,
+        is_vegetarian: true,
+        is_vegan: true,
+        is_gluten_free: true,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(existing);
+      changed = true;
+      return;
+    }
+
+    let itemChanged = false;
+    const syncField = (field: string, value: any) => {
+      const before = existing[field];
+      const same =
+        Array.isArray(before) && Array.isArray(value)
+          ? JSON.stringify(before) === JSON.stringify(value)
+          : before === value;
+      if (!same) {
+        existing[field] = value;
+        itemChanged = true;
+      }
+    };
+
+    syncField('name', name);
+    syncField('description', config.description);
+    syncField('price', config.price);
+    syncField('bottle_price', null);
+    syncField('image_url', null);
+    syncField('menu_type', 'drinks');
+    syncField('show_price', true);
+    syncField('show_description', true);
+    syncField('active', true);
+    syncField('ingredients', config.ingredients);
+    syncField('alcohol_content', config.alcohol_content);
+    syncField('garnish', null);
+    syncField('category_id', config.category_id);
+    syncField('coda_signature', config.coda_signature);
+    syncField('coda_happy_hour', config.coda_happy_hour);
+    syncField('coda_flight_group', config.coda_flight_group);
+    syncField('allergens', existing.allergens ?? null);
+    syncField('is_vegetarian', existing.is_vegetarian ?? true);
+    syncField('is_vegan', existing.is_vegan ?? true);
+    syncField('is_gluten_free', existing.is_gluten_free ?? true);
+
+    if (!existing.created_at) {
+      existing.created_at = now;
+      itemChanged = true;
+    }
+    if (itemChanged) {
+      existing.updated_at = now;
+      changed = true;
+    }
+  };
+
+  for (const flight of CODA_FLIGHT_OFFERINGS) {
+    upsertCuratedDrink({
+      name: flight.name,
+      description: flight.description,
+      price: flight.price,
+      category_id: flightsCategoryId,
+      ingredients: flight.ingredients.map((item) => normalizeDrinkName(item)).filter(Boolean),
+      alcohol_content: null,
+      coda_signature: false,
+      coda_happy_hour: false,
+      coda_flight_group: normalizeDrinkName(flight.name),
+    });
+  }
+
+  for (const zeroProof of CODA_ZERO_PROOF_ADDITIONS) {
+    upsertCuratedDrink({
+      name: zeroProof.name,
+      description: zeroProof.description,
+      price: zeroProof.price,
+      category_id: zeroProofCategoryId,
+      ingredients: zeroProof.ingredients.map((item) => normalizeDrinkName(item)).filter(Boolean),
+      alcohol_content: 0,
+      coda_signature: false,
+      coda_happy_hour: false,
+      coda_flight_group: null,
+    });
   }
 
   return changed;

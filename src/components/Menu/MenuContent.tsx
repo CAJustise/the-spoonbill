@@ -40,6 +40,7 @@ interface Category {
 // Categories where we don't show alcohol content
 const HIDE_ALCOHOL_CONTENT_CATEGORIES = [
   'Flights',
+  'Cocktail Flights',
   'Beer',
   'Wine',
   'Tiki Classic Flight',
