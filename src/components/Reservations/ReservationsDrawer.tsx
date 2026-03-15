@@ -6,6 +6,7 @@ import {
   validateSlotCapacity,
   type SlotAvailability,
 } from '../../lib/bookingCapacity';
+import { formatPerPersonPrice, formatPersonMinimum } from '../../lib/formatting';
 import type { ReservationIntent, ReservationPanelType } from '../../types/booking';
 
 interface ReservationsDrawerProps {
@@ -20,6 +21,7 @@ interface ClassEvent {
   time: string;
   price: string | null;
   booking_capacity: number;
+  booking_minimum: number;
   enrolled: number;
   remaining: number;
 }
@@ -89,6 +91,7 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
     () => classEvents.find((classEvent) => classEvent.id === selectedClassEventId) || null,
     [classEvents, selectedClassEventId],
   );
+  const selectedClassMinimum = Math.max(1, Number(selectedClassEvent?.booking_minimum || 1));
 
   const requestedGuestsForTimeSlot = reservationType === 'events' ? eventForm.guestCount : partySize;
 
@@ -116,6 +119,12 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
     void fetchAvailableTimeSlots();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, reservationType]);
+
+  useEffect(() => {
+    if (classGuestCount < selectedClassMinimum) {
+      setClassGuestCount(selectedClassMinimum);
+    }
+  }, [classGuestCount, selectedClassMinimum]);
 
   const fetchClassEvents = async () => {
     try {
@@ -159,6 +168,7 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
           time: String((classEvent as { time?: unknown }).time || ''),
           price: ((classEvent as { price?: unknown }).price as string | null) || null,
           booking_capacity: capacity,
+          booking_minimum: Math.max(1, Number((classEvent as { booking_minimum?: unknown }).booking_minimum || 1)),
           enrolled,
           remaining: Math.max(0, capacity - enrolled),
         } satisfies ClassEvent;
@@ -303,6 +313,11 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
     try {
       if (!selectedClassEventId) {
         setError('Please select a class.');
+        return;
+      }
+
+      if (classGuestCount < selectedClassMinimum) {
+        setError(`This class requires at least ${selectedClassMinimum} guests per booking.`);
         return;
       }
 
@@ -762,6 +777,7 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
           {classEvents.map((classEvent) => (
             <option key={classEvent.id} value={classEvent.id}>
               {classEvent.title} | {classEvent.date} {formatTime(classEvent.time)} | {classEvent.remaining} spots left
+              {classEvent.booking_minimum > 1 ? ` | ${classEvent.booking_minimum} person minimum` : ''}
             </option>
           ))}
         </select>
@@ -773,10 +789,15 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
           <div className="text-sm text-gray-700">
             {selectedClassEvent.date} at {formatTime(selectedClassEvent.time)}
           </div>
-          {selectedClassEvent.price && <div className="text-sm text-gray-700">{selectedClassEvent.price}</div>}
+          {selectedClassEvent.price && (
+            <div className="text-sm text-gray-700">{formatPerPersonPrice(selectedClassEvent.price)}</div>
+          )}
           <div className="text-sm text-gray-700">
             {selectedClassEvent.enrolled}/{selectedClassEvent.booking_capacity} enrolled
           </div>
+          {selectedClassEvent.booking_minimum > 1 && (
+            <div className="text-sm text-gray-700">{formatPersonMinimum(selectedClassEvent.booking_minimum)}</div>
+          )}
           <p className="text-sm text-gray-600">{selectedClassEvent.description}</p>
         </div>
       )}
@@ -785,10 +806,12 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
         <label className="block text-sm font-medium text-gray-700 mb-1">Guests</label>
         <input
           type="number"
-          min={1}
+          min={selectedClassMinimum}
           max={20}
           value={classGuestCount}
-          onChange={(event) => setClassGuestCount(parseInt(event.target.value || '1', 10))}
+          onChange={(event) =>
+            setClassGuestCount(Math.max(selectedClassMinimum, parseInt(event.target.value || String(selectedClassMinimum), 10)))
+          }
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
           required
         />

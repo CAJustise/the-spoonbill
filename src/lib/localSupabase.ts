@@ -953,6 +953,7 @@ const buildDefaultDb = () => {
         booking_type: 'class',
         booking_url: null,
         booking_capacity: 16,
+        booking_minimum: 1,
         display_order: 1,
         active: true,
         created_at: nowIso(),
@@ -968,6 +969,7 @@ const buildDefaultDb = () => {
         booking_type: 'class',
         booking_url: null,
         booking_capacity: 28,
+        booking_minimum: 1,
         display_order: 2,
         active: true,
         created_at: nowIso(),
@@ -2548,9 +2550,9 @@ const migrateDb = (db: PlainObject) => {
     'Island Mixology Class': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
     'Pacific Rim Tasting Night': 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
   };
-  const eventBookingDefaultsByTitle: Record<string, { booking_type: 'class' | 'event' | 'reservation'; booking_capacity: number }> = {
-    'Island Mixology Class': { booking_type: 'class', booking_capacity: 16 },
-    'Pacific Rim Tasting Night': { booking_type: 'class', booking_capacity: 28 },
+  const eventBookingDefaultsByTitle: Record<string, { booking_type: 'class' | 'event' | 'reservation'; booking_capacity: number; booking_minimum: number }> = {
+    'Island Mixology Class': { booking_type: 'class', booking_capacity: 16, booking_minimum: 1 },
+    'Pacific Rim Tasting Night': { booking_type: 'class', booking_capacity: 28, booking_minimum: 1 },
   };
 
   if (Array.isArray(db.job_listings)) {
@@ -2639,12 +2641,12 @@ const migrateDb = (db: PlainObject) => {
       }
 
       if (
-        bookingDefaults &&
-        (typeof nextEvent.booking_capacity !== 'number' ||
-          Number.isNaN(nextEvent.booking_capacity) ||
-          nextEvent.booking_capacity !== bookingDefaults.booking_capacity)
+        nextEvent.booking_type === 'class' &&
+        (typeof nextEvent.booking_minimum !== 'number' ||
+          Number.isNaN(nextEvent.booking_minimum) ||
+          nextEvent.booking_minimum < 1)
       ) {
-        nextEvent.booking_capacity = bookingDefaults.booking_capacity;
+        nextEvent.booking_minimum = bookingDefaults?.booking_minimum ?? 1;
         changed = true;
       }
 

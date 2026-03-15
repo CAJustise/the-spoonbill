@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Edit2, Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { formatPerPersonPrice, formatPersonMinimum } from '../../lib/formatting';
 
 interface ClassEvent {
   id: string;
@@ -13,6 +14,7 @@ interface ClassEvent {
   booking_type: 'class' | 'event' | 'reservation' | null;
   booking_url: string | null;
   booking_capacity?: number;
+  booking_minimum?: number;
   active: boolean;
   display_order: number;
 }
@@ -151,12 +153,23 @@ const BOHClasses: React.FC = () => {
       booking_type: 'class' as const,
       booking_url: null,
       booking_capacity: Number(formData.get('booking_capacity') || 16),
+      booking_minimum: Number(formData.get('booking_minimum') || 1),
       display_order: Number(formData.get('display_order') || 0),
       active: Boolean(formData.get('active')),
     };
 
     if (!payload.title || !payload.description || !payload.date || !payload.time || !payload.image_url) {
       alert('Title, description, date, time, and image URL are required.');
+      return;
+    }
+
+    if (payload.booking_minimum < 1) {
+      alert('Minimum guest count must be at least 1.');
+      return;
+    }
+
+    if (payload.booking_minimum > payload.booking_capacity) {
+      alert('Minimum guest count cannot be greater than class capacity.');
       return;
     }
 
@@ -302,6 +315,7 @@ const BOHClasses: React.FC = () => {
                 {classEvents.map((classEvent) => {
                   const enrolled = bookingLoadByEvent[classEvent.id] || 0;
                   const capacity = Number(classEvent.booking_capacity || 0);
+                  const minimum = Number(classEvent.booking_minimum || 1);
                   const remaining = Math.max(0, capacity - enrolled);
 
                   return (
@@ -314,12 +328,15 @@ const BOHClasses: React.FC = () => {
                         <div className="font-medium text-gray-900">{classEvent.date}</div>
                         <div className="text-sm text-gray-500">{formatClock(classEvent.time)}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-900">{classEvent.price || '-'}</td>
+                      <td className="px-4 py-3 text-gray-900">{formatPerPersonPrice(classEvent.price) || '-'}</td>
                       <td className="px-4 py-3">
                         <div className="text-gray-900">
                           {enrolled}/{capacity}
                         </div>
                         <div className="text-sm text-gray-500">{remaining} remaining</div>
+                        {minimum > 1 && (
+                          <div className="text-sm text-gray-500">{formatPersonMinimum(minimum)}</div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={classEvent.active ? 'text-green-600' : 'text-gray-500'}>
@@ -508,6 +525,17 @@ const BOHClasses: React.FC = () => {
                     min={1}
                     name="booking_capacity"
                     defaultValue={editingClassEvent?.booking_capacity ?? 16}
+                    required
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Guests</label>
+                  <input
+                    type="number"
+                    min={1}
+                    name="booking_minimum"
+                    defaultValue={editingClassEvent?.booking_minimum ?? 1}
                     required
                     className="w-full px-3 py-2 border rounded-lg"
                   />

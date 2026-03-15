@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { formatPerPersonPrice, formatUsdPrice } from '../../lib/formatting';
 
 interface Event {
   id: string;
@@ -319,7 +320,11 @@ const EventsAdmin: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{event.title}</div>
                     {event.price && (
-                      <div className="text-sm text-gray-500">{event.price}</div>
+                      <div className="text-sm text-gray-500">
+                        {event.booking_type === 'class'
+                          ? formatPerPersonPrice(event.price)
+                          : formatUsdPrice(event.price)}
+                      </div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

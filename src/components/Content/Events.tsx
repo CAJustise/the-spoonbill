@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, CalendarRange } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { formatPerPersonPrice, formatPersonMinimum, formatUsdPrice } from '../../lib/formatting';
 import type { ReservationPanelType } from '../../types/booking';
 
 interface Event {
@@ -14,6 +15,7 @@ interface Event {
   booking_type: 'class' | 'event' | 'reservation' | null;
   booking_url: string | null;
   booking_capacity?: number;
+  booking_minimum?: number;
   active: boolean;
   display_order: number;
 }
@@ -92,7 +94,16 @@ const Events: React.FC<EventsProps> = ({ onBook }) => {
                   </div>
                   {event.price && (
                     <div className="flex items-center text-gray-600">
-                      <span className="font-garamond font-medium">{event.price}</span>
+                      <span className="font-garamond font-medium">
+                        {event.booking_type === 'class'
+                          ? formatPerPersonPrice(event.price)
+                          : formatUsdPrice(event.price)}
+                      </span>
+                    </div>
+                  )}
+                  {event.booking_type === 'class' && event.booking_minimum && event.booking_minimum > 1 && (
+                    <div className="flex items-center text-gray-600">
+                      <span className="font-garamond text-sm">{formatPersonMinimum(event.booking_minimum)}</span>
                     </div>
                   )}
                   <div className="flex items-center text-gray-600">
