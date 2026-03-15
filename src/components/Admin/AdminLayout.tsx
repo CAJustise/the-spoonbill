@@ -247,7 +247,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
         </div>
       </nav>
 
-      <div className="fixed left-0 top-16 h-full w-64 bg-white shadow-lg overflow-y-auto">
+      <div className="fixed left-0 top-16 h-full w-56 bg-white shadow-lg overflow-y-auto">
         <nav className="p-4 space-y-2">
           {sections.map((section) => (
             <React.Fragment key={section.heading || section.items[0].to}>
@@ -276,7 +276,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
         </nav>
       </div>
 
-      <div className="pl-64 pt-16">{children}</div>
+      <div className="pl-56 pt-16">{children}</div>
     </div>
   );
 };

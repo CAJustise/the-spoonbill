@@ -1411,7 +1411,7 @@ const WorkforceManagement: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
+      <div className="max-w-none px-4 py-6 space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-3xl font-display font-bold text-gray-900">BOH Workforce OS</h1>
@@ -1752,12 +1752,12 @@ const WorkforceManagement: React.FC = () => {
 
           {scheduleView === 'week' ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full table-fixed border border-gray-200 rounded-lg overflow-hidden">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase min-w-[180px]">Employee</th>
+                    <th className="w-40 px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
                     {scheduleDates.map((date) => (
-                      <th key={formatDateKey(date)} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase min-w-[200px]">
+                      <th key={formatDateKey(date)} className="px-2 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
                         <div>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
                         <div className="normal-case text-sm text-gray-700">{formatDateShort(date)}</div>
                       </th>
@@ -1786,7 +1786,7 @@ const WorkforceManagement: React.FC = () => {
                         return (
                           <td
                             key={cellKey}
-                            className={`px-2 py-2 border-r border-gray-100 min-h-[96px] ${hasApprovedTimeOff ? 'bg-amber-50/60' : 'bg-white'}`}
+                            className={`px-1.5 py-2 border-r border-gray-100 ${hasApprovedTimeOff ? 'bg-amber-50/60' : 'bg-white'}`}
                             onDragOver={(event) => event.preventDefault()}
                             onDrop={() => {
                               if (!draggingShiftId) return;
@@ -1809,8 +1809,8 @@ const WorkforceManagement: React.FC = () => {
                                   onDragEnd={() => setDraggingShiftId(null)}
                                   className="rounded-md border border-ocean-200 bg-ocean-50 px-2 py-1 text-xs text-ocean-900"
                                 >
-                                  <div className="font-semibold">{roleById[shift.role_id]?.name || 'Role'}</div>
-                                  <div>
+                                  <div className="font-semibold truncate">{roleById[shift.role_id]?.name || 'Role'}</div>
+                                  <div className="truncate">
                                     {toTimeLabel(shift.start_time)} - {toTimeLabel(shift.end_time)}
                                   </div>
                                   <div className="mt-1 flex items-center gap-2">

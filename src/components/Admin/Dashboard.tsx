@@ -266,7 +266,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-none px-4 py-6">
         <h1 className="text-3xl font-display font-bold text-gray-900 mb-8">Admin Dashboard</h1>
 
         {!hasAnySectionAccess(capabilities) && (
