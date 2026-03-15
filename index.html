@@ -1,171 +1,37 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Spoonbill Lounge</title>
-  <meta name="description" content="Pacific Rim cuisine and craft cocktails in an immersive tropical escape.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body class="site-page drawer-site">
-  <header class="nav-header">
-    <div class="nav-pill">
-      <a class="brand" href="#" aria-label="The Spoonbill Lounge">
-        <img src="assets/spoonbill-logo-light.png" alt="The Spoonbill Lounge" class="site-logo">
-      </a>
-      <nav class="nav-links">
-        <a href="#menu" class="nav-link" data-drawer="menu-drawer">Menu</a>
-        <a href="#reservations" class="nav-link" data-drawer="reservations-drawer">Reservations</a>
-        <a href="#classes" class="nav-link" data-drawer="classes-drawer">Classes</a>
-        <a href="#events" class="nav-link" data-drawer="events-drawer">Private Events</a>
-        <a href="#contact" class="nav-link" data-drawer="contact-drawer">Contact</a>
-      </nav>
-    </div>
-  </header>
-
-  <section class="hero-screen">
-    <div class="hero-overlay"></div>
-    <div class="hero-content">
-      <h1>The Spoonbill Lounge</h1>
-      <p>Pacific Rim cuisine and craft cocktails in our immersive tropical escape.</p>
-      <a href="#menu" class="cta-button nav-link" data-drawer="menu-drawer">Open Menu</a>
-    </div>
-  </section>
-
-  <div class="drawer" id="menu-drawer">
-    <button class="close-btn" type="button" aria-label="Close">×</button>
-    <div class="drawer-content">
-      <h2>Menu</h2>
-      <div class="divider"></div>
-      <p class="drawer-intro">Split by category as requested: Spirits, Cocktails, Cuisine, Tastings.</p>
-      <div class="menu-tabs" role="tablist" aria-label="Menu categories">
-        <button class="tab-btn active" type="button" data-category="Spirits">Spirits</button>
-        <button class="tab-btn" type="button" data-category="Cocktails">Cocktails</button>
-        <button class="tab-btn" type="button" data-category="Cuisine">Cuisine</button>
-        <button class="tab-btn" type="button" data-category="Tastings">Tastings</button>
-      </div>
-      <div id="menu-items" class="menu-grid" aria-live="polite"></div>
-    </div>
-  </div>
-
-  <div class="drawer" id="reservations-drawer">
-    <button class="close-btn" type="button" aria-label="Close">×</button>
-    <div class="drawer-content">
-      <h2>Reservations</h2>
-      <div class="divider"></div>
-      <form id="reservation-form" class="stack-form drawer-form">
-        <label>Name<input name="name" required></label>
-        <div class="form-row">
-          <label>Phone<input name="phone" required></label>
-          <label>Email<input name="email" type="email" required></label>
-        </div>
-        <div class="form-row">
-          <label>Party Size<input name="partySize" type="number" min="1" max="24" required></label>
-          <label>Date<input name="date" type="date" required></label>
-        </div>
-        <label>Time<input name="time" type="time" required></label>
-        <label>Notes<textarea name="notes" rows="3" placeholder="Allergies, celebrations, preferences"></textarea></label>
-        <button type="submit" class="button button-primary">Submit Reservation</button>
-        <p class="form-feedback" data-feedback="reservation"></p>
-      </form>
-    </div>
-  </div>
-
-  <div class="drawer" id="classes-drawer">
-    <button class="close-btn" type="button" aria-label="Close">×</button>
-    <div class="drawer-content">
-      <h2>Classes</h2>
-      <div class="divider"></div>
-      <form id="class-request-form" class="stack-form drawer-form">
-        <label>Name<input name="name" required></label>
-        <div class="form-row">
-          <label>Email<input name="email" type="email" required></label>
-          <label>Phone<input name="phone" required></label>
-        </div>
-        <label>Class Interest
-          <select name="classType" required>
-            <option value="">Select...</option>
-            <option>Cocktail Masterclass</option>
-            <option>Whisky Tasting</option>
-            <option>Pacific Rim Cooking</option>
-            <option>Wine Pairing</option>
-          </select>
-        </label>
-        <div class="form-row">
-          <label>Preferred Date<input name="date" type="date" required></label>
-          <label>Guests<input name="guests" type="number" min="1" max="20" required></label>
-        </div>
-        <label>Notes<textarea name="notes" rows="3"></textarea></label>
-        <button type="submit" class="button button-primary">Submit Class Request</button>
-        <p class="form-feedback" data-feedback="class"></p>
-      </form>
-    </div>
-  </div>
-
-  <div class="drawer" id="events-drawer">
-    <button class="close-btn" type="button" aria-label="Close">×</button>
-    <div class="drawer-content">
-      <h2>Private Events</h2>
-      <div class="divider"></div>
-      <form id="private-event-form" class="stack-form drawer-form">
-        <label>Primary Contact<input name="name" required></label>
-        <div class="form-row">
-          <label>Email<input name="email" type="email" required></label>
-          <label>Phone<input name="phone" required></label>
-        </div>
-        <label>Event Type
-          <select name="eventType" required>
-            <option value="">Select...</option>
-            <option>Birthday</option>
-            <option>Corporate</option>
-            <option>Anniversary</option>
-            <option>Buyout Inquiry</option>
-          </select>
-        </label>
-        <div class="form-row">
-          <label>Date<input name="date" type="date" required></label>
-          <label>Guests<input name="guests" type="number" min="8" max="220" required></label>
-        </div>
-        <label>Start Time<input name="startTime" type="time" required></label>
-        <label>Notes<textarea name="notes" rows="3"></textarea></label>
-        <button type="submit" class="button button-primary">Submit Event Request</button>
-        <p class="form-feedback" data-feedback="event"></p>
-      </form>
-    </div>
-  </div>
-
-  <div class="drawer" id="contact-drawer">
-    <button class="close-btn" type="button" aria-label="Close">×</button>
-    <div class="drawer-content">
-      <h2>Contact</h2>
-      <div class="divider"></div>
-      <div class="contact-grid">
-        <div class="contact-card">
-          <h3>Visit Us</h3>
-          <p id="venue-address">Redondo Beach, CA</p>
-          <p><a id="venue-phone" href="tel:+13105550147">(310) 555-0147</a></p>
-          <p><a id="venue-email" href="mailto:hello@spoonbilllounge.com">hello@spoonbilllounge.com</a></p>
-        </div>
-        <div class="contact-card">
-          <h3>BOH Access</h3>
-          <p>Use the floating Spoonbill logo in the bottom-right to open BOH login and management tools.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <footer class="site-footer">
-    <p>© <span id="year"></span> The Spoonbill Lounge</p>
-  </footer>
-
-  <a class="floating-admin-logo" href="admin-login.html" aria-label="Open admin login">
-    <img src="assets/spoonbill-logo-dark.png" alt="Open BOH admin">
-  </a>
-
-  <script src="data.js"></script>
-  <script src="main.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Spoonbill Lounge</title>
+    
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:title" content="The Spoonbill Lounge" />
+    <meta property="og:description" content="Experience Pacific Rim cuisine and craft cocktails in our immersive tropical escape." />
+    <meta property="og:image" content="/src/assets/SpoonbillExterior.jpg" />
+    <meta property="og:url" content="https://spoonbilllounge.com" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Spoonbill Lounge | Redondo Beach" />
+    <meta name="twitter:description" content="Experience Pacific Rim cuisine and craft cocktails in our immersive tropical escape." />
+    <meta name="twitter:image" content="/src/assets/SpoonbillExterior.jpg" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --font-inter: 'Inter', sans-serif;
+        --font-playfair-display: 'Playfair Display', serif;
+        --font-garamond: 'EB Garamond', serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

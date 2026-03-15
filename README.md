@@ -1,13 +1,31 @@
-# The Spoonbill Lounge
+# The Spoonbill
 
-GitHub-only Spoonbill build (no Netlify, no Supabase).
+Original Spoonbill Lounge Vite/React site restored from the local project source.
 
-Live site:
+## Run locally
 
-- https://cajustise.github.io/the-spoonbill/
+```bash
+npm ci
+npm run dev
+```
 
-Notes:
+## Local BOH / Admin login
 
-- Public site uses drawer-based UI with transparent overlays.
-- Admin/BOH uses browser localStorage and a local password flow.
-- Default admin password: `spoonbill-admin`
+This project now defaults to a local data layer (no Supabase required).
+
+- Email: `admin@spoonbill.local`
+- Password: `spoonbill-admin`
+- Admin route: `/admin/login`
+
+## Optional remote Supabase mode
+
+If you ever want to reconnect to Supabase, copy `.env.example` to `.env` and set:
+
+- `VITE_USE_REMOTE_SUPABASE=true`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_SERVICE_ROLE_KEY`
+
+## Deployment
+
+GitHub Actions workflow deploys this site to GitHub Pages on every push to `main`.
