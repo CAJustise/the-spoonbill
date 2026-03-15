@@ -31,6 +31,7 @@ interface Category {
   name: string;
   menu_type: string;
   display_order: number;
+  parent_id: string | null;
   active: boolean;
 }
 
@@ -193,6 +194,52 @@ const FoodItemsAdmin: React.FC = () => {
     );
   };
 
+  const sortedCategoryOptions = (() => {
+    const sortByOrder = (a: Category, b: Category) =>
+      a.display_order - b.display_order || a.name.localeCompare(b.name);
+    const groups = new Map<string | null, Category[]>();
+
+    categories.forEach((category) => {
+      const key = category.parent_id ?? null;
+      const existing = groups.get(key) || [];
+      existing.push(category);
+      groups.set(key, existing);
+    });
+
+    const flatten = (parentId: string): Category[] => {
+      const children = [...(groups.get(parentId) || [])].sort(sortByOrder);
+      return children.flatMap((child) => [child, ...flatten(child.id)]);
+    };
+
+    const cuisineRoot =
+      categories.find((category) => category.id === 'cat_cuisine') ||
+      categories.find((category) => category.name.toLowerCase() === 'cuisine') ||
+      null;
+
+    if (cuisineRoot) {
+      return flatten(cuisineRoot.id).map((category) => {
+        let depth = 0;
+        let currentParentId = category.parent_id;
+        while (currentParentId && currentParentId !== cuisineRoot.id) {
+          const parent = categories.find((entry) => entry.id === currentParentId);
+          if (!parent) break;
+          depth += 1;
+          currentParentId = parent.parent_id;
+        }
+
+        return {
+          id: category.id,
+          label: `${depth > 0 ? `${'— '.repeat(depth)} ` : ''}${category.name}`,
+        };
+      });
+    }
+
+    return categories
+      .filter((category) => category.parent_id)
+      .sort(sortByOrder)
+      .map((category) => ({ id: category.id, label: category.name }));
+  })();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -248,9 +295,9 @@ const FoodItemsAdmin: React.FC = () => {
                     className="w-full px-3 py-2 border rounded-lg"
                   >
                     <option value="">No Category</option>
-                    {categories.map(category => (
+                    {sortedCategoryOptions.map((category) => (
                       <option key={category.id} value={category.id}>
-                        {category.name}
+                        {category.label}
                       </option>
                     ))}
                   </select>

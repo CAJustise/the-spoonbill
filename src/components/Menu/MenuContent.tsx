@@ -261,10 +261,17 @@ const MenuContent: React.FC = () => {
   const getCategoryNavLabel = (categoryName: string) =>
     CATEGORY_NAV_LABELS[categoryName] || categoryName;
 
-  const getCategoryPillLabel = (categoryName: string) =>
+  const getCategoryDisplayLabel = (categoryName: string) =>
     CATEGORY_PILL_LABELS[categoryName] || categoryName.replace(/\bCocktails?\b/gi, '').replace(/\s+/g, ' ').trim() || categoryName;
 
   const normalizeMenuName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  const categoryHasItems = (category: Category): boolean => {
+    if (filteredItems.some((item) => item.category_id === category.id)) {
+      return true;
+    }
+    return (category.subcategories || []).some((subcategory) => categoryHasItems(subcategory));
+  };
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -404,9 +411,9 @@ const MenuContent: React.FC = () => {
     return (
       <div key={subcategory.id} id={`subcategory-${subcategory.id}`} className="space-y-6">
         <div className="flex justify-center">
-          <div className="bg-ocean-600 text-white font-display font-bold px-8 py-2 rounded-full shadow-md">
-            {getCategoryPillLabel(subcategory.name)}
-          </div>
+          <h4 className="text-lg font-display font-semibold text-ocean-700 text-center">
+            {getCategoryDisplayLabel(subcategory.name)}
+          </h4>
         </div>
 
         {orderedFlights.map((flightItem) => {
@@ -417,7 +424,7 @@ const MenuContent: React.FC = () => {
           return (
             <div key={flightItem.id} className="space-y-6">
               <div className="flex items-center justify-between gap-4">
-                <div className="bg-ocean-600 text-white font-display font-bold px-6 py-2 rounded-full shadow-md">
+                <div className="font-display font-semibold text-ocean-700">
                   {flightItem.name}
                 </div>
                 {flightItem.price != null && (
@@ -442,7 +449,7 @@ const MenuContent: React.FC = () => {
   };
 
   const isFlightsSubcategory = (subcategory: Category) => {
-    const normalizedLabel = getCategoryPillLabel(subcategory.name).toLowerCase();
+    const normalizedLabel = getCategoryDisplayLabel(subcategory.name).toLowerCase();
     return (
       subcategory.id === 'cat_flights' ||
       normalizedLabel === 'flights' ||
@@ -450,48 +457,59 @@ const MenuContent: React.FC = () => {
     );
   };
 
-  const renderSubcategoryContent = (subcategory: Category) => {
-    const subcategoryItems = filteredItems.filter((item) => item.category_id === subcategory.id);
-    if (!subcategoryItems.length) return null;
+  const renderSubcategoryContent = (subcategory: Category, depth = 0) => {
+    const directItems = filteredItems.filter((item) => item.category_id === subcategory.id);
+    const nestedSubcategories = (subcategory.subcategories || [])
+      .filter((child) => categoryHasItems(child))
+      .sort((a, b) => a.display_order - b.display_order);
 
-    if (isFlightsSubcategory(subcategory)) {
-      return renderFlightsSubcategory(subcategory, subcategoryItems);
+    if (!directItems.length && !nestedSubcategories.length) return null;
+
+    if (isFlightsSubcategory(subcategory) && !nestedSubcategories.length) {
+      return renderFlightsSubcategory(subcategory, directItems);
     }
 
     return (
       <div key={subcategory.id} id={`subcategory-${subcategory.id}`} className="space-y-6">
-        <div className="flex justify-center">
-          <div className="bg-ocean-600 text-white font-display font-bold px-8 py-2 rounded-full shadow-md">
-            {getCategoryPillLabel(subcategory.name)}
+        <div className={depth > 0 ? 'flex justify-start' : 'flex justify-center'}>
+          <h4
+            className={
+              depth > 0
+                ? 'text-base font-display font-semibold text-ocean-700'
+                : 'text-lg font-display font-semibold text-ocean-700'
+            }
+          >
+            {getCategoryDisplayLabel(subcategory.name)}
+          </h4>
+        </div>
+
+        {directItems.length > 0 && (
+          <div className="grid gap-8">
+            {directItems.map((item) => (
+              <div key={item.id}>
+                {renderMenuItemCard(item)}
+              </div>
+            ))}
           </div>
-        </div>
-        <div className="grid gap-8">
-          {subcategoryItems.map((item) => (
-            <div key={item.id}>
-              {renderMenuItemCard(item)}
-            </div>
-          ))}
-        </div>
+        )}
+
+        {nestedSubcategories.length > 0 && (
+          <div className="space-y-8">
+            {nestedSubcategories.map((child) => renderSubcategoryContent(child, depth + 1))}
+          </div>
+        )}
       </div>
     );
   };
 
   const renderCategoryContent = (category: Category) => {
-    const categoryItems = filteredItems.filter(item => {
-      if (!category.subcategories?.length) {
-        // For categories without subcategories, show items directly assigned to this category
-        return item.category_id === category.id;
-      } else {
-        // For categories with subcategories, show items assigned to any of its subcategories
-        return category.subcategories.some(sub => item.category_id === sub.id);
-      }
-    });
-
-    if (!categoryItems.length && !category.subcategories?.length) return null;
+    const directCategoryItems = filteredItems.filter((item) => item.category_id === category.id);
 
     const subcategoriesWithItems = (category.subcategories || []).filter((subcategory) =>
-      filteredItems.some((item) => item.category_id === subcategory.id),
+      categoryHasItems(subcategory),
     );
+
+    if (!directCategoryItems.length && !subcategoriesWithItems.length) return null;
 
     const isCocktailsRoot =
       activeType === 'cocktails' &&
@@ -513,10 +531,9 @@ const MenuContent: React.FC = () => {
 
         {subcategoriesWithItems.map((subcategory) => renderSubcategoryContent(subcategory))}
 
-        {/* Render items directly assigned to this category (if no subcategories) */}
-        {!subcategoriesWithItems.length && (
+        {directCategoryItems.length > 0 && (
           <div className="grid gap-8">
-            {categoryItems.map((item) => (
+            {directCategoryItems.map((item) => (
               <div key={item.id}>
                 {renderMenuItemCard(item)}
               </div>
@@ -555,9 +572,7 @@ const MenuContent: React.FC = () => {
   const navTargets =
     cocktailsRootCategory && activeType === 'cocktails'
       ? (cocktailsRootCategory.subcategories || [])
-          .filter((subcategory) =>
-            filteredItems.some((item) => item.category_id === subcategory.id),
-          )
+          .filter((subcategory) => categoryHasItems(subcategory))
           .sort((a, b) => a.display_order - b.display_order)
           .map((subcategory) => ({
             id: `subcategory-${subcategory.id}`,
@@ -565,15 +580,15 @@ const MenuContent: React.FC = () => {
           }))
       : cuisineRootCategory && activeType === 'cuisine'
         ? (cuisineRootCategory.subcategories || [])
-            .filter((subcategory) =>
-              filteredItems.some((item) => item.category_id === subcategory.id),
-            )
+            .filter((subcategory) => categoryHasItems(subcategory))
             .sort((a, b) => a.display_order - b.display_order)
             .map((subcategory) => ({
               id: `subcategory-${subcategory.id}`,
               label: subcategory.name,
             }))
-      : rootCategories.map((category) => ({
+      : rootCategories
+          .filter((category) => categoryHasItems(category))
+          .map((category) => ({
           id: `category-${category.id}`,
           label: category.name,
         }));
@@ -632,7 +647,7 @@ const MenuContent: React.FC = () => {
             <button
               key={target.id}
               onClick={() => scrollToSection(target.id)}
-              className="px-5 py-2 text-sm font-display font-bold text-white bg-ocean-600 hover:bg-ocean-700 rounded-full shadow-md transition-colors"
+              className="px-1 py-1 text-sm font-display font-semibold text-ocean-700 underline-offset-4 hover:underline transition-colors"
             >
               {target.label}
             </button>

@@ -1688,48 +1688,135 @@ const ensureCodaFoodImport = (db: PlainObject) => {
   });
 
   const cuisineSubcategoryIds = new Map<string, string>();
-  CUISINE_SUBCATEGORY_SEEDS.forEach((subcategory, index) => {
+  CUISINE_SUBCATEGORY_SEEDS.forEach((subcategory) => {
+    const parentId =
+      subcategory.parent_id === 'cat_cuisine'
+        ? cuisineRootCategoryId
+        : cuisineSubcategoryIds.get(subcategory.parent_id) || subcategory.parent_id;
     const ensuredId = ensureCategory({
       id: subcategory.id,
       name: subcategory.name,
-      parent_id: cuisineRootCategoryId,
-      display_order: index + 1,
+      parent_id: parentId,
+      display_order: subcategory.display_order,
     });
     cuisineSubcategoryIds.set(subcategory.id, ensuredId);
   });
 
-  const legacyCategoryTargets: Record<string, string> = {
-    'Small Plate': cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
-    'Small Plates': cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
-    Entrees: cuisineSubcategoryIds.get('cat_food_main') || 'cat_food_main',
-    Bowl: cuisineSubcategoryIds.get('cat_food_bowls') || 'cat_food_bowls',
-    Bowls: cuisineSubcategoryIds.get('cat_food_bowls') || 'cat_food_bowls',
-    Sharable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
-    Shareable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
-    Desserts: cuisineSubcategoryIds.get('cat_food_dessert') || 'cat_food_dessert',
-    'Main - Sea': cuisineSubcategoryIds.get('cat_food_main_sea') || 'cat_food_main_sea',
-    'Main - Land': cuisineSubcategoryIds.get('cat_food_main_land') || 'cat_food_main_land',
-    'Raw Bar': cuisineSubcategoryIds.get('cat_food_raw_bar') || 'cat_food_raw_bar',
-    Salads: cuisineSubcategoryIds.get('cat_food_salads') || 'cat_food_salads',
+  const categoryIdTargets: Record<string, string | null> = {
+    cat_small_plates: cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    cat_entrees: cuisineSubcategoryIds.get('cat_food_main') || 'cat_food_main',
+    cat_food_small_plates:
+      cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    cat_food_appetizer: cuisineSubcategoryIds.get('cat_food_appetizer') || 'cat_food_appetizer',
+    cat_food_salad_and_soup:
+      cuisineSubcategoryIds.get('cat_food_soup_salad') || 'cat_food_soup_salad',
+    cat_food_salads: cuisineSubcategoryIds.get('cat_food_soup_salad') || 'cat_food_soup_salad',
+    cat_food_main: cuisineSubcategoryIds.get('cat_food_main') || 'cat_food_main',
+    cat_food_main_sea: cuisineSubcategoryIds.get('cat_food_main_sea') || 'cat_food_main_sea',
+    cat_food_main_land: cuisineSubcategoryIds.get('cat_food_main_land') || 'cat_food_main_land',
+    cat_food_sides: cuisineSubcategoryIds.get('cat_food_sides') || 'cat_food_sides',
+    cat_food_shareable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    cat_food_shareable_platters:
+      cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    cat_food_raw_bar: cuisineSubcategoryIds.get('cat_food_raw_bar') || 'cat_food_raw_bar',
+    cat_food_bowls: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    cat_food_roll: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    cat_food_bowls_rolls:
+      cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    cat_food_dessert:
+      cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    cat_food_prefix: null,
+  };
+
+  const categoryNameTargets: Record<string, string | null> = {
+    'small plate':
+      cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    'small plates':
+      cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    entrees: cuisineSubcategoryIds.get('cat_food_main') || 'cat_food_main',
+    appetizer: cuisineSubcategoryIds.get('cat_food_appetizer') || 'cat_food_appetizer',
+    'salad & soup': cuisineSubcategoryIds.get('cat_food_soup_salad') || 'cat_food_soup_salad',
+    'soup & salad': cuisineSubcategoryIds.get('cat_food_soup_salad') || 'cat_food_soup_salad',
+    salads: cuisineSubcategoryIds.get('cat_food_soup_salad') || 'cat_food_soup_salad',
+    main: cuisineSubcategoryIds.get('cat_food_main') || 'cat_food_main',
+    'main - sea': cuisineSubcategoryIds.get('cat_food_main_sea') || 'cat_food_main_sea',
+    'main - land': cuisineSubcategoryIds.get('cat_food_main_land') || 'cat_food_main_land',
+    sides: cuisineSubcategoryIds.get('cat_food_sides') || 'cat_food_sides',
+    sharable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    shareable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    'shareable platters':
+      cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    'raw bar': cuisineSubcategoryIds.get('cat_food_raw_bar') || 'cat_food_raw_bar',
+    bowl: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    bowls: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    roll: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    rolls: cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    'bowls / rolls':
+      cuisineSubcategoryIds.get('cat_food_bowls_rolls') || 'cat_food_bowls_rolls',
+    dessert: cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    desserts: cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    prefix: null,
+  };
+
+  const remapFoodCategoryId = (categoryId: string | null | undefined) => {
+    if (!categoryId) return null;
+    if (Object.prototype.hasOwnProperty.call(categoryIdTargets, categoryId)) {
+      return categoryIdTargets[categoryId];
+    }
+    if (cuisineSubcategoryIds.has(categoryId)) {
+      return cuisineSubcategoryIds.get(categoryId) || categoryId;
+    }
+    return undefined;
+  };
+
+  const remapFoodCategoryName = (categoryName: string | null | undefined) => {
+    if (!categoryName) return undefined;
+    const normalized = normalizeFoodName(String(categoryName)).toLowerCase();
+    if (!normalized) return undefined;
+    if (Object.prototype.hasOwnProperty.call(categoryNameTargets, normalized)) {
+      return categoryNameTargets[normalized];
+    }
+    return undefined;
   };
 
   for (const category of categories) {
     if (category.menu_type !== 'food') continue;
-    const targetCategoryId = legacyCategoryTargets[category.name];
-    if (!targetCategoryId || category.id === targetCategoryId) continue;
 
-    for (const item of items) {
-      if (item.category_id === category.id) {
-        item.category_id = targetCategoryId;
-        item.updated_at = now;
+    const targetCategoryId =
+      remapFoodCategoryId(category.id) ?? remapFoodCategoryName(category.name);
+    if (targetCategoryId === undefined) continue;
+
+    if (targetCategoryId === null) {
+      for (const item of items) {
+        if (item.category_id === category.id && item.active !== false) {
+          item.active = false;
+          item.updated_at = now;
+          changed = true;
+        }
+      }
+
+      if (category.active !== false) {
+        category.active = false;
+        category.updated_at = now;
         changed = true;
       }
+      continue;
     }
 
-    if (category.active !== false) {
-      category.active = false;
-      category.updated_at = now;
-      changed = true;
+    if (category.id !== targetCategoryId) {
+      for (const item of items) {
+        if (item.category_id === category.id) {
+          item.category_id = targetCategoryId;
+          item.updated_at = now;
+          changed = true;
+        }
+      }
+
+      if (category.active !== false) {
+        category.active = false;
+        category.updated_at = now;
+        changed = true;
+      }
     }
   }
 
@@ -1741,11 +1828,6 @@ const ensureCodaFoodImport = (db: PlainObject) => {
       if (!normalizedName || existingFoodByName.has(normalizedName)) return;
       existingFoodByName.set(normalizedName, item);
     });
-
-  const legacyCategoryIds = new Set<string>([
-    'cat_small_plates',
-    'cat_entrees',
-  ]);
 
   for (const imported of CODA_FOOD_ITEM_SEEDS) {
     const name = normalizeFoodName(imported.name);
@@ -1759,13 +1841,25 @@ const ensureCodaFoodImport = (db: PlainObject) => {
       typeof imported.description === 'string' && imported.description.trim()
         ? imported.description.trim()
         : null;
+    const remappedImportedCategoryId = remapFoodCategoryId(imported.category_id);
     const categoryId =
-      cuisineSubcategoryIds.get(imported.category_id) || imported.category_id;
+      remappedImportedCategoryId === undefined
+        ? cuisineSubcategoryIds.get(imported.category_id) || imported.category_id
+        : remappedImportedCategoryId;
     const dietText = `${name} ${importedDescription || ''}`.toLowerCase();
     const inferredVegan = /\bvegan\b/.test(dietText);
     const inferredVegetarian = inferredVegan || /\bvegetarian\b/.test(dietText);
 
     let existing = existingFoodByName.get(name.toLowerCase());
+
+    if (!categoryId) {
+      if (existing && existing.active !== false) {
+        existing.active = false;
+        existing.updated_at = now;
+        changed = true;
+      }
+      continue;
+    }
 
     if (!existing) {
       existing = {
@@ -1825,7 +1919,16 @@ const ensureCodaFoodImport = (db: PlainObject) => {
     ensureField('is_vegan', inferredVegan);
     ensureField('is_gluten_free', false);
 
-    if (legacyCategoryIds.has(existing.category_id)) {
+    const existingCategoryTarget = remapFoodCategoryId(existing.category_id);
+    if (existingCategoryTarget === null) {
+      if (existing.active !== false) {
+        existing.active = false;
+        itemChanged = true;
+      }
+    } else if (existingCategoryTarget && existing.category_id !== existingCategoryTarget) {
+      existing.category_id = existingCategoryTarget;
+      itemChanged = true;
+    } else if (!existing.category_id) {
       existing.category_id = categoryId;
       itemChanged = true;
     }

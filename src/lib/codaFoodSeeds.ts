@@ -1,63 +1,63 @@
 export const CUISINE_SUBCATEGORY_SEEDS = [
   {
-    "id": "cat_food_small_plates",
-    "name": "Small Plates"
+    "id": "cat_food_appetizer",
+    "name": "Appetizer",
+    "parent_id": "cat_cuisine",
+    "display_order": 1
+  },
+  {
+    "id": "cat_food_soup_salad",
+    "name": "Soup & Salad",
+    "parent_id": "cat_cuisine",
+    "display_order": 2
   },
   {
     "id": "cat_food_main",
-    "name": "Main"
-  },
-  {
-    "id": "cat_food_dessert",
-    "name": "Dessert"
-  },
-  {
-    "id": "cat_food_salad_and_soup",
-    "name": "Salad & Soup"
-  },
-  {
-    "id": "cat_food_bowls",
-    "name": "Bowls"
-  },
-  {
-    "id": "cat_food_shareable",
-    "name": "Shareable"
-  },
-  {
-    "id": "cat_food_prefix",
-    "name": "Prefix"
-  },
-  {
-    "id": "cat_food_roll",
-    "name": "Roll"
-  },
-  {
-    "id": "cat_food_raw_bar",
-    "name": "Raw Bar"
-  },
-  {
-    "id": "cat_food_sides",
-    "name": "Sides"
+    "name": "Main",
+    "parent_id": "cat_cuisine",
+    "display_order": 3
   },
   {
     "id": "cat_food_main_sea",
-    "name": "Main - Sea"
+    "name": "Main - Sea",
+    "parent_id": "cat_food_main",
+    "display_order": 1
   },
   {
     "id": "cat_food_main_land",
-    "name": "Main - Land"
+    "name": "Main - Land",
+    "parent_id": "cat_food_main",
+    "display_order": 2
   },
   {
-    "id": "cat_food_shareable_platters",
-    "name": "Shareable Platters"
+    "id": "cat_food_sides",
+    "name": "Sides",
+    "parent_id": "cat_cuisine",
+    "display_order": 4
   },
   {
-    "id": "cat_food_appetizer",
-    "name": "Appetizer"
+    "id": "cat_food_shareable",
+    "name": "Shareable",
+    "parent_id": "cat_cuisine",
+    "display_order": 5
   },
   {
-    "id": "cat_food_salads",
-    "name": "Salads"
+    "id": "cat_food_raw_bar",
+    "name": "Raw Bar",
+    "parent_id": "cat_cuisine",
+    "display_order": 6
+  },
+  {
+    "id": "cat_food_bowls_rolls",
+    "name": "Bowls / Rolls",
+    "parent_id": "cat_cuisine",
+    "display_order": 7
+  },
+  {
+    "id": "cat_food_small_plates",
+    "name": "Small Plates",
+    "parent_id": "cat_cuisine",
+    "display_order": 8
   }
 ] as const;
 
