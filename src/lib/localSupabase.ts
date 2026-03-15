@@ -885,6 +885,10 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       category.menu_type = 'drinks';
       changed = true;
     }
+    if (category.name !== config.name) {
+      category.name = config.name;
+      changed = true;
+    }
     if (category.parent_id !== config.parent_id) {
       category.parent_id = config.parent_id;
       changed = true;

@@ -407,11 +407,20 @@ const MenuContent: React.FC = () => {
     );
   };
 
+  const isFlightsSubcategory = (subcategory: Category) => {
+    const normalizedLabel = getCategoryPillLabel(subcategory.name).toLowerCase();
+    return (
+      subcategory.id === 'cat_flights' ||
+      normalizedLabel === 'flights' ||
+      subcategory.name.toLowerCase().includes('flight')
+    );
+  };
+
   const renderSubcategoryContent = (subcategory: Category) => {
     const subcategoryItems = filteredItems.filter((item) => item.category_id === subcategory.id);
     if (!subcategoryItems.length) return null;
 
-    if (subcategory.id === 'cat_flights') {
+    if (isFlightsSubcategory(subcategory)) {
       return renderFlightsSubcategory(subcategory, subcategoryItems);
     }
 
@@ -450,7 +459,9 @@ const MenuContent: React.FC = () => {
       filteredItems.some((item) => item.category_id === subcategory.id),
     );
 
-    const isCocktailsRoot = activeType === 'cocktails' && category.id === 'cat_cocktails';
+    const isCocktailsRoot =
+      activeType === 'cocktails' &&
+      (category.id === 'cat_cocktails' || category.name.toLowerCase() === 'cocktails');
 
     return (
       <div key={category.id} id={`category-${category.id}`} className="space-y-8">
