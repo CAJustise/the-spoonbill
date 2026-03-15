@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 
 interface EventBookingRecord {
   id: string;
+  source_booking_id?: string;
+  booking_source?: 'event' | 'class';
   event_type: string;
   customer_name: string;
   customer_email: string;
@@ -19,6 +21,19 @@ interface EventBookingRecord {
   catering_needed?: boolean;
   bar_service_needed?: boolean;
   av_equipment_needed?: boolean;
+  status?: string;
+}
+
+interface ClassBookingRecord {
+  id: string;
+  class_title?: string;
+  class_date?: string;
+  class_time?: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  guest_count: number;
+  special_requests?: string;
   status?: string;
 }
 
@@ -65,17 +80,52 @@ const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
   const [editingBooking, setEditingBooking] = useState<EventBookingRecord | null>(null);
 
   const fetchBookings = async () => {
-    const { data, error } = await supabase
-      .from('event_bookings')
-      .select('*')
-      .order('event_date')
-      .order('event_time');
+    const [eventBookingsRes, classBookingsRes] = await Promise.all([
+      supabase.from('event_bookings').select('*').order('event_date').order('event_time'),
+      supabase.from('class_bookings').select('*').order('class_date').order('class_time'),
+    ]);
 
-    if (error) {
-      throw new Error(error.message || 'Failed to load event/party bookings');
+    if (eventBookingsRes.error) {
+      throw new Error(eventBookingsRes.error.message || 'Failed to load event/party bookings');
+    }
+    if (classBookingsRes.error) {
+      throw new Error(classBookingsRes.error.message || 'Failed to load class bookings');
     }
 
-    setBookings((data as EventBookingRecord[]) || []);
+    const eventRows = ((eventBookingsRes.data as EventBookingRecord[]) || []).map((booking) => ({
+      ...booking,
+      booking_source: 'event' as const,
+      source_booking_id: booking.id,
+    }));
+
+    const classRows = ((classBookingsRes.data as ClassBookingRecord[]) || []).map((booking) => ({
+      id: `class_${booking.id}`,
+      source_booking_id: booking.id,
+      booking_source: 'class' as const,
+      event_type: booking.class_title || 'Class Reservation',
+      customer_name: booking.customer_name,
+      customer_email: booking.customer_email,
+      customer_phone: booking.customer_phone,
+      guest_count: Number(booking.guest_count || 0),
+      event_date: booking.class_date || '',
+      event_time: booking.class_time || '00:00:00',
+      duration_hours: 2,
+      budget_range: '',
+      setup_requirements: 'Class reservation',
+      special_requests: booking.special_requests || '',
+      status: booking.status || 'pending',
+      catering_needed: false,
+      bar_service_needed: false,
+      av_equipment_needed: false,
+    }));
+
+    const merged = [...eventRows, ...classRows].sort((a, b) => {
+      const left = `${a.event_date || ''} ${a.event_time || ''}`;
+      const right = `${b.event_date || ''} ${b.event_time || ''}`;
+      return left.localeCompare(right);
+    });
+
+    setBookings(merged);
   };
 
   const fetchSlots = async () => {
@@ -169,8 +219,12 @@ const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
     }
   };
 
-  const handleDeleteBooking = async (bookingId: string) => {
+  const handleDeleteBooking = async (booking: EventBookingRecord) => {
     if (!canDeleteBookings) return;
+    if (booking.booking_source === 'class') {
+      alert('Class reservations are managed in BOH Classes.');
+      return;
+    }
     if (!confirm('Delete this private event booking?')) return;
 
     setSaving(true);
@@ -178,7 +232,7 @@ const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
       const { error } = await supabase
         .from('event_bookings')
         .delete()
-        .eq('id', bookingId);
+        .eq('id', booking.source_booking_id || booking.id);
       if (error) throw error;
       await fetchBookings();
     } catch (error) {
@@ -192,6 +246,11 @@ const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
     if (!canEditBookings) return;
     event.preventDefault();
     if (!editingBooking) return;
+    if (editingBooking.booking_source === 'class') {
+      alert('Class reservations are managed in BOH Classes.');
+      setEditingBooking(null);
+      return;
+    }
 
     const formData = new FormData(event.currentTarget);
     const payload = {
@@ -223,7 +282,7 @@ const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
       const { error } = await supabase
         .from('event_bookings')
         .update(payload)
-        .eq('id', editingBooking.id);
+        .eq('id', editingBooking.source_booking_id || editingBooking.id);
 
       if (error) throw error;
       await fetchBookings();
@@ -386,36 +445,39 @@ const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
                       <span className="capitalize text-gray-700">{booking.status || 'pending'}</span>
                     </td>
                     <td className="px-4 py-3 text-right space-x-2">
-                      {canEditBookings && (
-                        <button
-                          type="button"
-                          onClick={() => setEditingBooking(booking)}
+                          {canEditBookings && booking.booking_source !== 'class' && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingBooking(booking)}
                           className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
                           title="Edit booking"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                       )}
-                      {canDeleteBookings && (
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteBooking(booking.id)}
-                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
-                          title="Delete booking"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                      {!canEditBookings && !canDeleteBookings && (
-                        <span className="text-sm text-gray-400">View Only</span>
-                      )}
+                          {canDeleteBookings && booking.booking_source !== 'class' && (
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteBooking(booking)}
+                              className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
+                              title="Delete booking"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {booking.booking_source === 'class' && (
+                            <span className="text-xs text-ocean-700">Manage in Classes</span>
+                          )}
+                          {!canEditBookings && !canDeleteBookings && booking.booking_source !== 'class' && (
+                            <span className="text-sm text-gray-400">View Only</span>
+                          )}
                     </td>
                   </tr>
                 ))}
                 {!filteredBookings.length && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                      No event/party bookings found for the selected filters.
+                      No event, party, or class bookings found for the selected filters.
                     </td>
                   </tr>
                 )}
