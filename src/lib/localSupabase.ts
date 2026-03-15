@@ -1242,6 +1242,7 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
       id: employeeId,
       user_id: String(member.user_id || ''),
       email: String(member.email || ''),
+      phone: String(member.phone || ''),
       name: String(member.name || 'Team Member'),
       title: String(member.title || 'Employee'),
       status: member.active === false ? 'inactive' : 'active',
@@ -3553,6 +3554,11 @@ const ensureWorkforceFoundation = (db: PlainObject, users: PlainObject[]) => {
       const linkedUser = userById[String(nextEmployee.user_id || '')];
       if (linkedUser && !nextEmployee.email) {
         nextEmployee.email = String(linkedUser.email || '');
+        changed = true;
+      }
+
+      if (nextEmployee.phone === undefined || nextEmployee.phone === null) {
+        nextEmployee.phone = '';
         changed = true;
       }
 

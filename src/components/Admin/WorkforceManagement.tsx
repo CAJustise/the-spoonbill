@@ -9,6 +9,8 @@ import {
   Copy,
   Edit2,
   FileText,
+  Mail,
+  MessageSquareText,
   NotebookPen,
   Plus,
   Save,
@@ -25,6 +27,7 @@ interface WorkforceEmployee {
   user_id?: string;
   name: string;
   email?: string;
+  phone?: string;
   title?: string;
   status: 'active' | 'inactive' | string;
   default_location_id: string;
@@ -293,6 +296,7 @@ const formatDateHeader = (value: Date) =>
 const buildEmployeeDraft = (roleId = '', hourlyRate = '24') => ({
   name: '',
   email: '',
+  phone: '',
   title: '',
   role_id: roleId,
   hourly_rate: hourlyRate,
@@ -994,6 +998,7 @@ const WorkforceManagement: React.FC = () => {
     setEmployeeDraft({
       name: employee.name || '',
       email: String(employee.email || ''),
+      phone: String(employee.phone || ''),
       title: String(employee.title || roleById[primaryRoleId]?.name || ''),
       role_id: primaryRoleId,
       hourly_rate: String(primaryRate),
@@ -1237,6 +1242,7 @@ const WorkforceManagement: React.FC = () => {
         user_id: userId || null,
         name: employeeDraft.name.trim(),
         email: employeeEmail || null,
+        phone: employeeDraft.phone.trim() || null,
         title: employeeDraft.title.trim() || roleById[primaryRoleId]?.name || 'Employee',
         status: active ? 'active' : 'inactive',
         default_location_id: 'wf_loc_main',
@@ -2079,6 +2085,58 @@ const WorkforceManagement: React.FC = () => {
     }
   };
 
+  const buildUpcomingScheduleDigest = (employee: WorkforceEmployee) => {
+    const now = startOfToday();
+    const end = addDays(now, 7);
+    const upcomingShifts = shifts
+      .filter((shift) => {
+        if (shift.employee_id !== employee.id) return false;
+        const start = new Date(shift.start_time);
+        if (Number.isNaN(start.getTime())) return false;
+        return start.getTime() >= now.getTime() && start.getTime() < end.getTime();
+      })
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+    if (!upcomingShifts.length) {
+      return `Hi ${employee.name},\n\nYou have no scheduled shifts for the next 7 days.\n\n- Spoonbill Workforce`;
+    }
+
+    const shiftLines = upcomingShifts.map((shift) => {
+      const start = new Date(shift.start_time);
+      const endTime = new Date(shift.end_time);
+      const dateLabel = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeLabel = `${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      const roleLabel = roleById[shift.role_id]?.name || 'Shift';
+      return `${dateLabel}: ${roleLabel} (${timeLabel})`;
+    });
+
+    return `Hi ${employee.name},\n\nHere is your schedule for the next 7 days:\n${shiftLines.join('\n')}\n\n- Spoonbill Workforce`;
+  };
+
+  const emailScheduleToEmployee = (employee: WorkforceEmployee) => {
+    const toEmail = String(employee.email || '').trim();
+    if (!toEmail) {
+      alert('Add a contact email first.');
+      return;
+    }
+
+    const subject = encodeURIComponent('Your Spoonbill Schedule (Next 7 Days)');
+    const body = encodeURIComponent(buildUpcomingScheduleDigest(employee));
+    window.location.href = `mailto:${encodeURIComponent(toEmail)}?subject=${subject}&body=${body}`;
+  };
+
+  const textScheduleToEmployee = (employee: WorkforceEmployee) => {
+    const rawPhone = String(employee.phone || '').trim();
+    if (!rawPhone) {
+      alert('Add a phone number first.');
+      return;
+    }
+
+    const normalizedPhone = rawPhone.replace(/[^\d+]/g, '');
+    const body = encodeURIComponent(buildUpcomingScheduleDigest(employee));
+    window.location.href = `sms:${normalizedPhone}?body=${body}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -2183,6 +2241,26 @@ const WorkforceManagement: React.FC = () => {
                       className="w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                    <input
+                      type="email"
+                      value={employeeDraft.email}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, email: event.target.value }))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="teammember@spoonbill.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={employeeDraft.phone}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, phone: event.target.value }))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="(555) 555-5555"
+                    />
+                  </div>
                   <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
                     <textarea
@@ -2281,7 +2359,7 @@ const WorkforceManagement: React.FC = () => {
                       <input
                         type="email"
                         value={employeeDraft.login_username}
-                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, login_username: event.target.value, email: event.target.value }))}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, login_username: event.target.value }))}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="employee@spoonbill.local"
                       />
@@ -2577,6 +2655,7 @@ const WorkforceManagement: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contact</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Attendance</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
@@ -2593,17 +2672,41 @@ const WorkforceManagement: React.FC = () => {
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{employee.name}</div>
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-900">{employee.email || '-'}</div>
+                        <div className="text-sm text-gray-500">{employee.phone || '-'}</div>
+                      </td>
                       <td className="px-4 py-3 text-gray-900">{roleName}</td>
                       <td className="px-4 py-3 text-gray-900">{Math.round(Number(employee.attendance_score || 0))}%</td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => openEditEmployeeEditor(employee)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                          Edit
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => emailScheduleToEmployee(employee)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                            title="Email next 7 days schedule"
+                          >
+                            <Mail className="h-4 w-4" />
+                            Email
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => textScheduleToEmployee(employee)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                            title="Text next 7 days schedule"
+                          >
+                            <MessageSquareText className="h-4 w-4" />
+                            Text
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEditEmployeeEditor(employee)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
