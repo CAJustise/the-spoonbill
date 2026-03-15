@@ -336,8 +336,19 @@ const buildDefaultDb = () => {
         id: 'job_head_bartender',
         title: 'Head Bartender',
         description: 'Lead cocktail program execution and bar team development.',
-        requirements: '3+ years high-volume craft cocktail experience',
-        salary_range: '$70k - $85k',
+        requirements: [
+          '3+ years high-volume craft cocktail experience',
+          'Strong leadership and mentorship ability',
+          'Comfortable with inventory and cost controls',
+        ],
+        benefits: [
+          'Health benefits',
+          'Dining discounts',
+          'Performance bonuses',
+        ],
+        salary_min: 70000,
+        salary_max: 85000,
+        salary_type: 'yearly',
         location: 'Santa Monica, CA',
         is_featured: true,
         active: true,
@@ -349,8 +360,19 @@ const buildDefaultDb = () => {
         id: 'job_line_cook',
         title: 'Line Cook',
         description: 'Execute service with precision and consistency.',
-        requirements: '2+ years fine dining prep and line experience',
-        salary_range: '$24 - $30/hr',
+        requirements: [
+          '2+ years fine dining prep and line experience',
+          'Knife skills and station discipline',
+          'Ability to maintain pace during peak service',
+        ],
+        benefits: [
+          'Health benefits',
+          'Daily staff meal',
+          'Growth pathway to sous chef',
+        ],
+        salary_min: 24,
+        salary_max: 30,
+        salary_type: 'hourly',
         location: 'Santa Monica, CA',
         is_featured: false,
         active: true,
@@ -421,6 +443,111 @@ const persistJson = (key: string, value: any) => {
   window.localStorage.setItem(key, JSON.stringify(value));
 };
 
+const splitToList = (value: any) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/\r?\n|;/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const parseSalaryRange = (rawSalaryRange: any) => {
+  if (typeof rawSalaryRange !== 'string' || !rawSalaryRange.trim()) {
+    return {
+      salary_min: null,
+      salary_max: null,
+      salary_type: null,
+    };
+  }
+
+  const normalized = rawSalaryRange.toLowerCase();
+  const numberMatches = Array.from(normalized.matchAll(/(\d+(?:\.\d+)?)\s*(k)?/g));
+
+  const values = numberMatches
+    .map((match) => {
+      const numeric = Number.parseFloat(match[1]);
+      if (!Number.isFinite(numeric)) return null;
+      return match[2] ? numeric * 1000 : numeric;
+    })
+    .filter((value): value is number => value !== null);
+
+  const salaryType = /\/\s*hr|hour/.test(normalized)
+    ? 'hourly'
+    : /\/\s*year|year|k/.test(normalized)
+      ? 'yearly'
+      : null;
+
+  return {
+    salary_min: values[0] ?? null,
+    salary_max: values[1] ?? null,
+    salary_type: salaryType,
+  };
+};
+
+const migrateDb = (db: PlainObject) => {
+  let changed = false;
+
+  if (Array.isArray(db.job_listings)) {
+    db.job_listings = db.job_listings.map((job: PlainObject) => {
+      const nextJob = { ...job };
+      const inferredSalary = parseSalaryRange(nextJob.salary_range);
+      const nextRequirements = splitToList(nextJob.requirements);
+      const nextBenefits = splitToList(nextJob.benefits);
+
+      if (JSON.stringify(nextJob.requirements ?? null) !== JSON.stringify(nextRequirements)) {
+        nextJob.requirements = nextRequirements;
+        changed = true;
+      }
+
+      if (JSON.stringify(nextJob.benefits ?? null) !== JSON.stringify(nextBenefits)) {
+        nextJob.benefits = nextBenefits;
+        changed = true;
+      }
+
+      if (nextJob.salary_min == null && inferredSalary.salary_min != null) {
+        nextJob.salary_min = inferredSalary.salary_min;
+        changed = true;
+      }
+
+      if (nextJob.salary_max == null && inferredSalary.salary_max != null) {
+        nextJob.salary_max = inferredSalary.salary_max;
+        changed = true;
+      }
+
+      if ((nextJob.salary_type == null || nextJob.salary_type === '') && inferredSalary.salary_type) {
+        nextJob.salary_type = inferredSalary.salary_type;
+        changed = true;
+      }
+
+      if (nextJob.salary_min === undefined) {
+        nextJob.salary_min = null;
+        changed = true;
+      }
+
+      if (nextJob.salary_max === undefined) {
+        nextJob.salary_max = null;
+        changed = true;
+      }
+
+      if (nextJob.salary_type === undefined) {
+        nextJob.salary_type = null;
+        changed = true;
+      }
+
+      return nextJob;
+    });
+  }
+
+  return { db, changed };
+};
+
 class LocalStore {
   db: PlainObject;
   users: PlainObject[];
@@ -432,6 +559,12 @@ class LocalStore {
     this.users = loadJson(USERS_KEY, defaultUsers);
     this.session = loadJson(SESSION_KEY, () => null);
     this.files = loadJson(FILES_KEY, () => ({}));
+
+    const migration = migrateDb(this.db);
+    this.db = migration.db;
+    if (migration.changed) {
+      this.saveDb();
+    }
   }
 
   saveDb() {
