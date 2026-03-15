@@ -82,6 +82,309 @@ const buildDefaultTimeSlots = () => {
   return slots;
 };
 
+const CODA_BEVERAGE_IMPORT = [
+  {
+    name: 'Plumed Paradise Pina Colada',
+    description: 'Indulge in a taste of paradise with this luscious, frothy cocktail, a tropical symphony that dances on the palate, inviting you to spread your wings in a vibrant haven.',
+    price: 18,
+    alcohol_content: 2,
+    non_alcoholic: false,
+    ingredients: ['Bacardi Superior', 'Pineapple Juice', 'Coconut Cream'],
+    spirit_category: 'RUM',
+    flight: 'Tropical Fruit Adventure',
+  },
+  {
+    name: 'Chirping Chi Chi',
+    description: 'Embark on a tranquil escape with this playful twist on the classic, where every sip sings a melody of tropical bliss, whisking you away to a serene paradise.',
+    price: 18,
+    alcohol_content: 2,
+    non_alcoholic: false,
+    ingredients: ["Tito's Handmade Vodka", 'Coconut Cream', 'Pineapple Juice'],
+    spirit_category: 'VODKA',
+    flight: null,
+  },
+  {
+    name: 'Coral Canopy Reef',
+    description: 'Delve into oceanic paradise with this visually stunning cocktail, a harmonious blend that mirrors the serene beauty and bright hues of a coral reef.',
+    price: 18,
+    alcohol_content: 2,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Tropical Fruit Adventure',
+  },
+  {
+    name: 'Molten Sunset Lava Flow',
+    description: 'Witness a tropical sunset in a glass with this captivating cocktail, where the fiery blend of strawberry, pineapple, and coconut creates a mesmerizing lava flow effect.',
+    price: 18,
+    alcohol_content: 2,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Sapphire Skies Blue Hawaii',
+    description: 'Immerse yourself in the splendor of a tropical daydream, a cocktail that captures the essence of cloudless, sapphire skies and sun-kissed shores.',
+    price: 20,
+    alcohol_content: 3,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Tropical Fruit Adventure',
+  },
+  {
+    name: 'Soothing Sanctuary Painkiller',
+    description: 'Embark on a serene journey to tropical bliss with this enchanting cocktail, offering a delicate balance of warmth and sweetness, perfect for a tranquil escape from the everyday.',
+    price: 20,
+    alcohol_content: 3,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Aloha Spirit Mai Tai',
+    description: 'Savor the sunset and dance with the waves with this blissful cocktail, an embodiment of the Hawaiian spirit and island paradise.',
+    price: 20,
+    alcohol_content: 3,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Tiki Classic Flight',
+  },
+  {
+    name: 'Island Rendezvous Bahama Mama',
+    description: 'Embark on a sun-drenched journey with this vibrant cocktail, a blissful blend of island flavors that celebrates the spirited essence of tropical life.',
+    price: 20,
+    alcohol_content: 3,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Break The Storm Hurricane',
+    description: "Embrace the exhilaration of a tropical tempest with this vibrant and bold cocktail, a daring blend that captures the essence of a storm's untamed beauty.",
+    price: 20,
+    alcohol_content: 3,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: "Trader Vic's Mai Tai",
+    description: 'Indulge in the ultimate embodiment of island elegance with this enchanting cocktail, a symphony of flavors that whisk you away to sandy beaches and sun-kissed shores.',
+    price: 20,
+    alcohol_content: 3,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Feathered Frenzy Zombie',
+    description: 'Surrender to the call of the wild with this audacious, complex cocktail, a tropical storm in a glass that tantalizes the senses and awakens the spirit.',
+    price: 22,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Tiki Classic Flight',
+  },
+  {
+    name: "Talon's Tango Scorpion",
+    description: "A daring dance of flavors, this cocktail tempts with a mysterious blend, inviting you to embrace the wild thrill of nature's untamed spirit.",
+    price: 22,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Rum Ripples Rum Runner',
+    description: 'Embark on a flavorful odyssey with this spirited blend, an adventure of sun-kissed sweetness and refreshing zest, perfect for the high seas explorer.',
+    price: 22,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Tropic Wings Singapore Sling',
+    description: 'Embark on a sensory journey with this enchanting blend, evoking distant tropical horizons and a blush of sunset in every sip.',
+    price: 22,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'GIN',
+    flight: 'Tiki Classic Flight',
+  },
+  {
+    name: 'Jungle Plumage Bird',
+    description: 'Dive into a vivid and adventurous cocktail that brings the lush, vibrant essence of the jungle to life, complete with a mysterious hint of the exotic.',
+    price: 22,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Spoonbill Signature',
+  },
+  {
+    name: "Flamingo's Fancy Planter's Punch",
+    description: 'Celebrate tropical sophistication with this vibrant, whimsical cocktail, embodying the grace of a flamingo with its flamboyant hue and lively citrus notes. Enhanced with a splash of potent overproof rum to elevate the tropical experience to new heights of indulgence',
+    price: 24,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Spoonbill Signature',
+  },
+  {
+    name: 'Opulent Oasis Pearl Diver',
+    description: 'Experience a journey into sophisticated relaxation with this exquisite cocktail, blending select rums and delicate flavors for a truly opulent escape.',
+    price: 24,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: 'Spoonbill Signature',
+  },
+  {
+    name: 'Shark Beak Bay Shark Bite',
+    description: "Embark on a vivid ocean adventure with this audacious cocktail, a tribute to the deep's mysteries with its bold flavors and dramatic 'bleeding' effect. Crowned with a dark rum float, this drink takes a fierce bite with its enhanced potency, perfect for those who like to swim in deeper waters.",
+    price: 24,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Nautical Nest Navy Grog',
+    description: 'Set sail on a bold seafaring adventure with this hearty cocktail, a tribute to maritime explorers with its robust blend of rums and zesty citrus flavors.',
+    price: 24,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Enchanted Canopy Fog Cutter',
+    description: 'Lose yourself in the magic of the tropical wilderness with this complex and intriguing cocktail, a symphony of potent spirits and citrus, topped with a haze-like sherry float.',
+    price: 24,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Mystic Jungle Bowl',
+    description: 'Embark on a flavor expedition with layers of passion fruit and citrus, crowned by a cinnamon flare.',
+    price: 60,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Volcanic Spirit Bowl',
+    description: 'Experience an eruption of tropical flavors with a smoky grenadine finish like flowing lava.',
+    price: 60,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: "Siren's Serenade Bowl",
+    description: "Be enchanted by this melody of sweet and citrus notes, as enchanting as a siren's call.",
+    price: 60,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: "Navigator's Grog Bowl",
+    description: 'Navigate through a sea of flavors, from the sweetness of the tropics to a hint of spice.',
+    price: 60,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: "Islander's Sunset Bowl",
+    description: 'Set sail towards the horizon with this vibrant blend, where the warmth of the Island sun meets the coolness of the evening tide.',
+    price: 60,
+    alcohol_content: 4,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Crimson Tide Bowl',
+    description: "Set sail on bold flavors with a cocktail that's as deep and daring as the crimson tide.",
+    price: 70,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'BOURBON',
+    flight: null,
+  },
+  {
+    name: "Pirate's Bounty Bowl",
+    description: "Plunder the depths of flavor with a robust bowl fit for a captain's toast.",
+    price: 70,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: 'Typhoon Treasure Bowl',
+    description: "Brace for a storm of flavors with a mix that's as tempestuous as it is tantalizing.",
+    price: 70,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: "Empire's Eclipse Bowl",
+    description: "Conquer the night with a cocktail that's as mysterious as an eclipse with a burst of citrus flame.",
+    price: 70,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+  {
+    name: "Islander's Sunset Bowl",
+    description: 'Set sail towards the horizon with this vibrant blend, where the warmth of the island sun meets the coolness of the evening tide.',
+    price: 70,
+    alcohol_content: 5,
+    non_alcoholic: false,
+    ingredients: [],
+    spirit_category: 'RUM',
+    flight: null,
+  },
+] as const;
+
 const seedMenu = () => {
   const categories = [
     { id: 'cat_cocktails', name: 'Cocktails', menu_type: 'drinks', display_order: 1, parent_id: null, active: true },
@@ -491,6 +794,187 @@ const parseSalaryRange = (rawSalaryRange: any) => {
   };
 };
 
+const normalizeDrinkName = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+const normalizeDrinkKey = (name: string, price: number | null | undefined) =>
+  `${normalizeDrinkName(name).toLowerCase()}|${price ?? ''}`;
+
+const ensureCodaBeverageImport = (db: PlainObject) => {
+  if (!Array.isArray(db.menu_categories) || !Array.isArray(db.menu_items)) {
+    return false;
+  }
+
+  let changed = false;
+  const now = nowIso();
+  const categories = db.menu_categories as PlainObject[];
+  const items = db.menu_items as PlainObject[];
+
+  const ensureCategory = (config: {
+    id: string;
+    name: string;
+    parent_id: string | null;
+    display_order: number;
+  }) => {
+    let category =
+      categories.find((entry) => entry.id === config.id) ||
+      categories.find((entry) => entry.menu_type === 'drinks' && entry.name === config.name);
+
+    if (!category) {
+      category = {
+        id: config.id,
+        name: config.name,
+        menu_type: 'drinks',
+        display_order: config.display_order,
+        parent_id: config.parent_id,
+        active: true,
+        created_at: now,
+        updated_at: now,
+      };
+      categories.push(category);
+      changed = true;
+      return category.id;
+    }
+
+    if (category.menu_type !== 'drinks') {
+      category.menu_type = 'drinks';
+      changed = true;
+    }
+    if (category.parent_id !== config.parent_id) {
+      category.parent_id = config.parent_id;
+      changed = true;
+    }
+    if (category.display_order !== config.display_order) {
+      category.display_order = config.display_order;
+      changed = true;
+    }
+    if (category.active !== true) {
+      category.active = true;
+      changed = true;
+    }
+    if (!category.created_at) {
+      category.created_at = now;
+      changed = true;
+    }
+    if (!category.updated_at) {
+      category.updated_at = now;
+      changed = true;
+    }
+
+    return category.id;
+  };
+
+  const cocktailsCategoryId = ensureCategory({
+    id: 'cat_cocktails',
+    name: 'Cocktails',
+    parent_id: null,
+    display_order: 1,
+  });
+  const signatureCategoryId = ensureCategory({
+    id: 'cat_signature',
+    name: 'Signature Cocktails',
+    parent_id: cocktailsCategoryId,
+    display_order: 1,
+  });
+  const zeroProofCategoryId = ensureCategory({
+    id: 'cat_zero_proof',
+    name: 'Zero Proof',
+    parent_id: cocktailsCategoryId,
+    display_order: 2,
+  });
+
+  const existingDrinkByKey = new Map<string, PlainObject>();
+  items
+    .filter((item) => item.menu_type === 'drinks')
+    .forEach((item) => {
+      const name = typeof item.name === 'string' ? normalizeDrinkName(item.name) : '';
+      const key = normalizeDrinkKey(name, item.price);
+      if (!existingDrinkByKey.has(key)) {
+        existingDrinkByKey.set(key, item);
+      }
+    });
+
+  for (const imported of CODA_BEVERAGE_IMPORT) {
+    const name = normalizeDrinkName(imported.name);
+    const price = Number(imported.price);
+    const alcoholContent = Number.isFinite(imported.alcohol_content) ? imported.alcohol_content : null;
+    const description = imported.description ? imported.description.trim() : null;
+    const ingredients = imported.ingredients
+      .map((ingredient) => normalizeDrinkName(ingredient))
+      .filter(Boolean);
+    const categoryId = imported.non_alcoholic ? zeroProofCategoryId : signatureCategoryId;
+    const itemKey = normalizeDrinkKey(name, price);
+    const existing = existingDrinkByKey.get(itemKey);
+
+    if (!existing) {
+      items.push({
+        id: `item_${slug(`${name}-${price}`)}`,
+        name,
+        description,
+        price,
+        bottle_price: null,
+        image_url: null,
+        menu_type: 'drinks',
+        show_price: true,
+        show_description: true,
+        active: true,
+        ingredients,
+        alcohol_content: alcoholContent,
+        garnish: null,
+        category_id: categoryId,
+        allergens: null,
+        is_vegetarian: true,
+        is_vegan: true,
+        is_gluten_free: true,
+        created_at: now,
+        updated_at: now,
+      });
+      changed = true;
+      continue;
+    }
+
+    let itemChanged = false;
+    const syncField = (field: string, value: any) => {
+      const before = existing[field];
+      const same =
+        Array.isArray(before) && Array.isArray(value)
+          ? JSON.stringify(before) === JSON.stringify(value)
+          : before === value;
+      if (!same) {
+        existing[field] = value;
+        itemChanged = true;
+      }
+    };
+
+    syncField('name', name);
+    syncField('description', description);
+    syncField('price', price);
+    syncField('bottle_price', null);
+    syncField('menu_type', 'drinks');
+    syncField('show_price', true);
+    syncField('show_description', true);
+    syncField('active', true);
+    syncField('ingredients', ingredients);
+    syncField('alcohol_content', alcoholContent);
+    syncField('garnish', null);
+    syncField('category_id', categoryId);
+    syncField('allergens', existing.allergens ?? null);
+    syncField('is_vegetarian', existing.is_vegetarian ?? true);
+    syncField('is_vegan', existing.is_vegan ?? true);
+    syncField('is_gluten_free', existing.is_gluten_free ?? true);
+
+    if (!existing.created_at) {
+      existing.created_at = now;
+      itemChanged = true;
+    }
+    if (itemChanged) {
+      existing.updated_at = now;
+      changed = true;
+    }
+  }
+
+  return changed;
+};
+
 const migrateDb = (db: PlainObject) => {
   let changed = false;
   const eventImageByTitle: Record<string, string> = {
@@ -561,6 +1045,10 @@ const migrateDb = (db: PlainObject) => {
 
       return nextEvent;
     });
+  }
+
+  if (ensureCodaBeverageImport(db)) {
+    changed = true;
   }
 
   return { db, changed };
