@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Edit2, Plus, Repeat, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { derivePortalCapabilities, getRoleIdsForUser, getTeamMemberForUser } from '../../lib/bohRoles';
 import { formatPerPersonPrice, formatPersonMinimum } from '../../lib/formatting';
 
 interface ClassEvent {
@@ -130,14 +131,16 @@ interface BOHClassesProps {
 }
 
 const BOHClasses: React.FC<BOHClassesProps> = ({
-  canManageClassSetup = true,
-  canEditBookings = true,
-  canDeleteBookings = true,
+  canManageClassSetup: canManageClassSetupProp = true,
+  canEditBookings: canEditBookingsProp = true,
+  canDeleteBookings: canDeleteBookingsProp = true,
 }) => {
   const [classEvents, setClassEvents] = useState<ClassEvent[]>([]);
   const [classSessions, setClassSessions] = useState<ClassSession[]>([]);
   const [classBookings, setClassBookings] = useState<ClassBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [classesReadOnly, setClassesReadOnly] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isClassFormOpen, setIsClassFormOpen] = useState(false);
   const [editingClassEvent, setEditingClassEvent] = useState<ClassEvent | null>(null);
@@ -226,6 +229,42 @@ const BOHClasses: React.FC<BOHClassesProps> = ({
     void refreshData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const resolveAccess = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user?.id) return;
+
+        const roleIds = await getRoleIdsForUser(session.user.id);
+        const teamMember = await getTeamMemberForUser(session.user.id);
+        const capabilities = derivePortalCapabilities(roleIds, teamMember);
+
+        if (active) {
+          setClassesReadOnly(Boolean(capabilities.operationsClassesReadOnly));
+        }
+      } finally {
+        if (active) {
+          setPermissionsLoading(false);
+        }
+      }
+    };
+
+    void resolveAccess();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const canManageClassSetup = canManageClassSetupProp && !classesReadOnly;
+  const canEditBookings = canEditBookingsProp && !classesReadOnly;
+  const canDeleteBookings = canDeleteBookingsProp && !classesReadOnly;
 
   const classEventMap = useMemo(
     () =>
@@ -705,7 +744,7 @@ const BOHClasses: React.FC<BOHClassesProps> = ({
     }
   };
 
-  if (loading) {
+  if (loading || permissionsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ocean-600" />

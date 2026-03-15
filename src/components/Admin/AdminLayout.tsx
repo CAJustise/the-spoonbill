@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   Menu,
   Calendar,
@@ -23,20 +23,20 @@ import {
 import { supabase } from '../../lib/supabase';
 import {
   canAccessCapability,
-  canAccessPortal,
+  canAccessSection,
   derivePortalCapabilities,
   getRoleIdsForUser,
   getTeamMemberForUser,
-  resolveDefaultPortal,
+  hasAnySectionAccess,
   type BohCapability,
-  type BohPortal,
+  type BohSection,
   type PortalCapabilities,
 } from '../../lib/bohRoles';
 import logoNavy from '../../assets/SpoonbillLogoDark.png';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
-  portal?: BohPortal;
+  requiredSection?: BohSection;
   requiredCapability?: BohCapability;
 }
 
@@ -44,6 +44,7 @@ interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  capability?: BohCapability;
 }
 
 interface NavSection {
@@ -51,83 +52,63 @@ interface NavSection {
   items: NavItem[];
 }
 
-const adminNavSections: NavSection[] = [
-  {
-    items: [{ to: '/admin', label: 'Dashboard', icon: Menu }],
-  },
-  {
-    heading: 'Menu Management',
-    items: [
-      { to: '/admin/menu/tasting-menus', label: 'Tasting Menus', icon: ChefHat },
-      { to: '/admin/menu/food-categories', label: 'Food Categories', icon: UtensilsCrossed },
-      { to: '/admin/menu/food-items', label: 'Food Items', icon: UtensilsCrossed },
-      { to: '/admin/menu/drink-categories', label: 'Drink Categories', icon: GlassWater },
-      { to: '/admin/menu/drink-items', label: 'Drink Items', icon: GlassWater },
-    ],
-  },
-  {
-    heading: 'Operations',
-    items: [
-      { to: '/admin/boh/reservations', label: 'Reservations', icon: CalendarCheck2 },
-      { to: '/admin/boh/events-parties', label: 'Event / Parties', icon: CalendarRange },
-      { to: '/admin/boh/classes', label: 'Classes', icon: GraduationCap },
-    ],
-  },
-  {
-    heading: 'Workforce OS',
-    items: [{ to: '/admin/workforce', label: 'Team + Labor', icon: Users }],
-  },
-  {
-    heading: 'Content Management',
-    items: [
-      { to: '/admin/events', label: 'Event Management', icon: Calendar },
-      { to: '/admin/images', label: 'Image Manager', icon: Image },
-    ],
-  },
-  {
-    heading: 'Career Management',
-    items: [
-      { to: '/admin/jobs', label: 'Job Listings', icon: Briefcase },
-      { to: '/admin/departments', label: 'Departments', icon: Building2 },
-      { to: '/admin/job-types', label: 'Employment Types', icon: FileText },
-      { to: '/admin/applications', label: 'Job Applications', icon: Users },
-    ],
-  },
-  {
-    heading: 'Investment',
-    items: [{ to: '/admin/investor-submissions', label: 'Investor Submissions', icon: DollarSign }],
-  },
-  {
-    heading: 'System',
-    items: [
-      { to: '/admin/team-members', label: 'Team Members', icon: UserCog },
-      { to: '/admin/settings', label: 'Settings', icon: Settings },
-    ],
-  },
+const EMPTY_CAPABILITIES: PortalCapabilities = {
+  canViewReservations: false,
+  canViewEventsParties: false,
+  canViewClasses: false,
+  operationsClassesReadOnly: false,
+  canAccessMenuManagement: false,
+  canAccessOperations: false,
+  canAccessWorkforce: false,
+  canAccessContentManagement: false,
+  canAccessCareerManagement: false,
+  canAccessInvestment: false,
+  canAccessSettings: false,
+};
+
+const MENU_ITEMS: NavItem[] = [
+  { to: '/admin/menu/tasting-menus', label: 'Tasting Menus', icon: ChefHat },
+  { to: '/admin/menu/food-categories', label: 'Food Categories', icon: UtensilsCrossed },
+  { to: '/admin/menu/food-items', label: 'Food Items', icon: UtensilsCrossed },
+  { to: '/admin/menu/drink-categories', label: 'Drink Categories', icon: GlassWater },
+  { to: '/admin/menu/drink-items', label: 'Drink Items', icon: GlassWater },
 ];
 
-const portalLoginPath = (portal: BohPortal) => {
-  if (portal === 'admin') return '/admin/login';
-  if (portal === 'host') return '/host/login';
-  return '/staff/login';
-};
+const OPERATIONS_ITEMS: NavItem[] = [
+  { to: '/admin/boh/reservations', label: 'Reservations', icon: CalendarCheck2, capability: 'reservations' },
+  { to: '/admin/boh/events-parties', label: 'Event / Parties', icon: CalendarRange, capability: 'events_parties' },
+  { to: '/admin/boh/classes', label: 'Classes', icon: GraduationCap, capability: 'classes' },
+];
 
-const portalHomePath = (portal: BohPortal) => {
-  if (portal === 'admin') return '/admin';
-  if (portal === 'host') return '/host';
-  return '/staff';
-};
+const WORKFORCE_ITEMS: NavItem[] = [
+  { to: '/admin/workforce', label: 'Team + Labor', icon: Users },
+  { to: '/admin/workforce/team-access', label: 'Team Access', icon: UserCog },
+];
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ children, portal = 'admin', requiredCapability }) => {
+const CONTENT_ITEMS: NavItem[] = [
+  { to: '/admin/events', label: 'Event Management', icon: Calendar },
+  { to: '/admin/images', label: 'Image Manager', icon: Image },
+];
+
+const CAREER_ITEMS: NavItem[] = [
+  { to: '/admin/jobs', label: 'Job Listings', icon: Briefcase },
+  { to: '/admin/departments', label: 'Departments', icon: Building2 },
+  { to: '/admin/job-types', label: 'Employment Types', icon: FileText },
+  { to: '/admin/applications', label: 'Job Applications', icon: Users },
+];
+
+const INVESTMENT_ITEMS: NavItem[] = [
+  { to: '/admin/investor-submissions', label: 'Investor Submissions', icon: DollarSign },
+];
+
+const SETTINGS_ITEMS: NavItem[] = [{ to: '/admin/settings', label: 'Settings', icon: Settings }];
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, requiredCapability }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [authReady, setAuthReady] = useState(false);
   const [teamMemberName, setTeamMemberName] = useState('');
-  const [capabilities, setCapabilities] = useState<PortalCapabilities>({
-    canViewReservations: false,
-    canViewEventsParties: false,
-    canViewClasses: false,
-  });
+  const [capabilities, setCapabilities] = useState<PortalCapabilities>(EMPTY_CAPABILITIES);
 
   useEffect(() => {
     let active = true;
@@ -138,46 +119,39 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, portal = 'admin', r
           data: { session },
         } = await supabase.auth.getSession();
 
-        const loginPath = portalLoginPath(portal);
         if (!session) {
-          navigate(loginPath);
+          navigate('/admin/login');
           return;
         }
 
         const roleIds = await getRoleIdsForUser(session.user.id);
         const teamMember = await getTeamMemberForUser(session.user.id);
+        const nextCapabilities = derivePortalCapabilities(roleIds, teamMember);
 
-        if (!canAccessPortal(roleIds, portal, teamMember)) {
-          const fallbackPortal = resolveDefaultPortal(roleIds, teamMember);
-          if (fallbackPortal) {
-            navigate(portalHomePath(fallbackPortal));
-            return;
-          }
-
+        if (!hasAnySectionAccess(nextCapabilities)) {
           await supabase.auth.signOut();
-          navigate(loginPath);
+          navigate('/admin/login');
           return;
         }
 
-        const nextCapabilities = derivePortalCapabilities(roleIds, teamMember);
-        if (
-          portal !== 'admin' &&
-          requiredCapability &&
-          !canAccessCapability(nextCapabilities, requiredCapability)
-        ) {
-          navigate(portalHomePath(portal));
+        if (requiredSection && !canAccessSection(nextCapabilities, requiredSection)) {
+          navigate('/admin');
+          return;
+        }
+
+        if (requiredCapability && !canAccessCapability(nextCapabilities, requiredCapability)) {
+          navigate('/admin');
           return;
         }
 
         if (!active) return;
 
         setCapabilities(nextCapabilities);
-        setTeamMemberName(teamMember?.name || '');
+        setTeamMemberName(teamMember?.name || String(session.user.email || ''));
         setAuthReady(true);
       } catch {
-        const loginPath = portalLoginPath(portal);
         await supabase.auth.signOut();
-        navigate(loginPath);
+        navigate('/admin/login');
       }
     };
 
@@ -186,50 +160,58 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, portal = 'admin', r
     return () => {
       active = false;
     };
-  }, [navigate, portal, requiredCapability]);
+  }, [navigate, requiredCapability, requiredSection]);
 
-  const loginPath = portalLoginPath(portal);
-  const portalTitle = portal === 'admin' ? 'Admin Portal' : portal === 'host' ? 'Host Portal' : 'Team Portal';
   const sections = useMemo(() => {
-    if (portal === 'admin') {
-      return adminNavSections;
+    const nextSections: NavSection[] = [
+      {
+        items: [{ to: '/admin', label: 'Dashboard', icon: Menu }],
+      },
+    ];
+
+    if (canAccessSection(capabilities, 'menu_management')) {
+      nextSections.push({ heading: 'Menu Management', items: MENU_ITEMS });
     }
 
-    const basePath = portal === 'host' ? '/host' : '/staff';
-    const bohItems: NavItem[] = [];
-
-    if (capabilities.canViewReservations) {
-      bohItems.push({ to: `${basePath}/reservations`, label: 'Reservations', icon: CalendarCheck2 });
-    }
-    if (capabilities.canViewEventsParties) {
-      bohItems.push({ to: `${basePath}/events-parties`, label: 'Event / Parties', icon: CalendarRange });
-    }
-    if (capabilities.canViewClasses) {
-      bohItems.push({ to: `${basePath}/classes`, label: 'Classes', icon: GraduationCap });
+    if (canAccessSection(capabilities, 'operations')) {
+      const allowedOperationItems = OPERATIONS_ITEMS.filter((item) =>
+        item.capability ? canAccessCapability(capabilities, item.capability) : true,
+      );
+      if (allowedOperationItems.length > 0) {
+        nextSections.push({ heading: 'Operations', items: allowedOperationItems });
+      }
     }
 
-    const navSections: NavSection[] = [{ items: [{ to: basePath, label: 'Dashboard', icon: Menu }] }];
-    if (bohItems.length) {
-      navSections.push({
-        heading: 'BOH Operations',
-        items: bohItems,
-      });
+    if (canAccessSection(capabilities, 'workforce')) {
+      nextSections.push({ heading: 'Workforce OS', items: WORKFORCE_ITEMS });
     }
 
-    return navSections;
-  }, [capabilities, portal]);
+    if (canAccessSection(capabilities, 'content_management')) {
+      nextSections.push({ heading: 'Content Management', items: CONTENT_ITEMS });
+    }
+
+    if (canAccessSection(capabilities, 'career_management')) {
+      nextSections.push({ heading: 'Career Management', items: CAREER_ITEMS });
+    }
+
+    if (canAccessSection(capabilities, 'investment')) {
+      nextSections.push({ heading: 'Investment', items: INVESTMENT_ITEMS });
+    }
+
+    if (canAccessSection(capabilities, 'settings')) {
+      nextSections.push({ heading: 'Settings', items: SETTINGS_ITEMS });
+    }
+
+    return nextSections;
+  }, [capabilities]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate(loginPath);
+    navigate('/admin/login');
   };
 
   const isActive = (path: string) =>
-    location.pathname === path ||
-    (path !== '/admin' &&
-      path !== '/host' &&
-      path !== '/staff' &&
-      location.pathname.startsWith(`${path}/`));
+    location.pathname === path || (path !== '/admin' && location.pathname.startsWith(`${path}/`));
 
   if (!authReady) {
     return (
@@ -247,14 +229,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, portal = 'admin', r
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
                 <img src={logoNavy} alt="The Spoonbill" className="h-8 w-auto" />
-                <span className="ml-3 text-xl font-garamond font-medium text-gray-900">{portalTitle}</span>
+                <span className="ml-3 text-xl font-garamond font-medium text-gray-900">Admin Portal</span>
               </Link>
             </div>
 
             <div className="flex items-center gap-6">
-              {teamMemberName && portal !== 'admin' && (
-                <span className="text-sm text-gray-500 hidden md:block">{teamMemberName}</span>
-              )}
+              {teamMemberName && <span className="text-sm text-gray-500 hidden md:block">{teamMemberName}</span>}
               <button
                 onClick={handleSignOut}
                 className="flex items-center text-gray-600 hover:text-ocean-600 transition-colors"

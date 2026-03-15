@@ -1,79 +1,44 @@
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { derivePortalCapabilities, getRoleIdsForUser, getTeamMemberForUser, hasAnySectionAccess } from '../../lib/bohRoles';
 import logoNavy from '../../assets/SpoonbillLogoDark.png';
-import {
-  canAccessPortal,
-  getRoleIdsForUser,
-  getTeamMemberForUser,
-  resolveDefaultPortal,
-  type BohPortal,
-} from '../../lib/bohRoles';
 
-interface LoginPageProps {
-  portal?: BohPortal;
-}
-
-const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
+const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       });
 
-      if (error) throw error;
+      if (signInError) throw signInError;
+      if (!data.session) throw new Error('No session after login.');
 
-      if (data.session) {
-        const roleIds = await getRoleIdsForUser(data.session.user.id);
-        const teamMember = await getTeamMemberForUser(data.session.user.id);
+      const roleIds = await getRoleIdsForUser(data.session.user.id);
+      const teamMember = await getTeamMemberForUser(data.session.user.id);
+      const capabilities = derivePortalCapabilities(roleIds, teamMember);
 
-        if (!canAccessPortal(roleIds, portal, teamMember)) {
-          await supabase.auth.signOut();
-          throw new Error(
-            portal === 'admin'
-              ? 'This account does not have Admin access.'
-              : portal === 'host'
-                ? 'This account does not have Host access. Try Staff Login.'
-                : 'This account does not have Staff access.',
-          );
-        }
-
-        if (portal === 'admin') {
-          navigate('/admin');
-          return;
-        }
-
-        if (portal === 'host') {
-          navigate('/host');
-          return;
-        }
-
-        const defaultPortal = resolveDefaultPortal(roleIds, teamMember);
-        if (defaultPortal === 'host') {
-          navigate('/host');
-          return;
-        }
-
-        navigate('/staff');
-        return;
+      if (!hasAnySectionAccess(capabilities)) {
+        await supabase.auth.signOut();
+        throw new Error('This account is active, but no dashboard sections are assigned yet.');
       }
 
-      throw new Error('No session after login');
-    } catch (error) {
-      setError((error as Error).message);
+      navigate('/admin');
+    } catch (authError) {
+      setError((authError as Error).message);
     } finally {
       setLoading(false);
     }
@@ -96,7 +61,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mt-6 text-center text-3xl font-display font-bold text-gray-900"
         >
-          {portal === 'host' ? 'Host Login' : portal === 'staff' ? 'Staff Login' : 'Admin Login'}
+          Employee Login
         </motion.h2>
       </div>
 
@@ -120,7 +85,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-ocean-500 focus:border-ocean-500"
                 />
               </div>
@@ -138,7 +103,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
                   autoComplete="current-password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-ocean-500 focus:border-ocean-500"
                 />
               </div>
@@ -156,9 +121,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">Authentication error</h3>
-                    <div className="mt-2 text-sm text-red-700">
-                      {error}
-                    </div>
+                    <div className="mt-2 text-sm text-red-700">{error}</div>
                   </div>
                 </div>
               </motion.div>
@@ -179,40 +142,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
             </div>
           </form>
           <div className="mt-6 border-t border-gray-100 pt-4 text-center">
-            {portal === 'host' ? (
-              <p className="text-sm text-gray-600">
-                Need full access?{' '}
-                <Link to="/admin/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
-                  Admin Login
-                </Link>
-                {' '}or{' '}
-                <Link to="/staff/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
-                  Staff Login
-                </Link>
-              </p>
-            ) : portal === 'staff' ? (
-              <p className="text-sm text-gray-600">
-                Need host tools?{' '}
-                <Link to="/host/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
-                  Host Login
-                </Link>
-                {' '}or{' '}
-                <Link to="/admin/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
-                  Admin Login
-                </Link>
-              </p>
-            ) : (
-              <p className="text-sm text-gray-600">
-                Host or staff access?{' '}
-                <Link to="/host/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
-                  Host Login
-                </Link>
-                {' '}or{' '}
-                <Link to="/staff/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
-                  Staff Login
-                </Link>
-              </p>
-            )}
+            <p className="text-sm text-gray-600">
+              Access is managed in Workforce OS {'>'} Team Access.
+            </p>
           </div>
         </div>
       </motion.div>

@@ -991,6 +991,14 @@ const defaultTeamMembers = () => [
     can_view_reservations: true,
     can_view_events_parties: true,
     can_view_classes: true,
+    can_access_menu_management: true,
+    can_access_operations: true,
+    can_access_workforce: true,
+    can_access_content_management: true,
+    can_access_career_management: true,
+    can_access_investment: true,
+    can_access_settings: true,
+    operations_classes_read_only: false,
     active: true,
     created_at: nowIso(),
   },
@@ -1004,6 +1012,14 @@ const defaultTeamMembers = () => [
     can_view_reservations: true,
     can_view_events_parties: true,
     can_view_classes: true,
+    can_access_menu_management: false,
+    can_access_operations: true,
+    can_access_workforce: true,
+    can_access_content_management: false,
+    can_access_career_management: false,
+    can_access_investment: false,
+    can_access_settings: false,
+    operations_classes_read_only: true,
     active: true,
     created_at: nowIso(),
   },
@@ -1017,6 +1033,14 @@ const defaultTeamMembers = () => [
     can_view_reservations: true,
     can_view_events_parties: true,
     can_view_classes: true,
+    can_access_menu_management: false,
+    can_access_operations: true,
+    can_access_workforce: true,
+    can_access_content_management: false,
+    can_access_career_management: false,
+    can_access_investment: false,
+    can_access_settings: false,
+    operations_classes_read_only: true,
     active: true,
     created_at: nowIso(),
   },
@@ -1030,6 +1054,14 @@ const defaultTeamMembers = () => [
     can_view_reservations: false,
     can_view_events_parties: false,
     can_view_classes: false,
+    can_access_menu_management: false,
+    can_access_operations: true,
+    can_access_workforce: true,
+    can_access_content_management: false,
+    can_access_career_management: false,
+    can_access_investment: false,
+    can_access_settings: false,
+    operations_classes_read_only: true,
     active: true,
     created_at: nowIso(),
   },
@@ -1043,6 +1075,14 @@ const defaultTeamMembers = () => [
     can_view_reservations: false,
     can_view_events_parties: true,
     can_view_classes: true,
+    can_access_menu_management: false,
+    can_access_operations: true,
+    can_access_workforce: true,
+    can_access_content_management: false,
+    can_access_career_management: false,
+    can_access_investment: false,
+    can_access_settings: false,
+    operations_classes_read_only: true,
     active: true,
     created_at: nowIso(),
   },
@@ -1056,6 +1096,14 @@ const defaultTeamMembers = () => [
     can_view_reservations: true,
     can_view_events_parties: false,
     can_view_classes: false,
+    can_access_menu_management: false,
+    can_access_operations: true,
+    can_access_workforce: true,
+    can_access_content_management: false,
+    can_access_career_management: false,
+    can_access_investment: false,
+    can_access_settings: false,
+    operations_classes_read_only: true,
     active: true,
     created_at: nowIso(),
   },
@@ -1230,6 +1278,54 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
     };
   });
 
+  const ptoBalances = workforceEmployees.map((employee) => ({
+    id: `wf_pto_${employee.id}`,
+    employee_id: employee.id,
+    accrued_hours: 80,
+    used_hours: employee.id.endsWith('host_lead') ? 8 : 0,
+    available_hours: employee.id.endsWith('host_lead') ? 72 : 80,
+    updated_at: nowIso(),
+    created_at: nowIso(),
+  }));
+
+  const scheduleTemplates = [
+    {
+      id: 'wf_sched_tpl_weekday_pm',
+      name: 'Weekday PM Core',
+      location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+      created_by: 'system',
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    },
+  ];
+
+  const scheduleTemplateShifts = [
+    {
+      id: 'wf_sched_tpl_shift_1',
+      template_id: 'wf_sched_tpl_weekday_pm',
+      day_offset: 1,
+      employee_id: workforceEmployees[1]?.id || workforceEmployees[0]?.id || '',
+      role_id: 'wf_role_host',
+      station_id: 'wf_station_host',
+      start_time: '17:00:00',
+      end_time: '23:00:00',
+      wage_rate: 24,
+      created_at: nowIso(),
+    },
+    {
+      id: 'wf_sched_tpl_shift_2',
+      template_id: 'wf_sched_tpl_weekday_pm',
+      day_offset: 1,
+      employee_id: workforceEmployees[4]?.id || workforceEmployees[0]?.id || '',
+      role_id: 'wf_role_bartender',
+      station_id: 'wf_station_bar',
+      start_time: '16:00:00',
+      end_time: '00:00:00',
+      wage_rate: 30,
+      created_at: nowIso(),
+    },
+  ];
+
   return {
     workforce_locations: [
       {
@@ -1290,8 +1386,24 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
       },
     ],
     workforce_shifts: shifts,
+    workforce_schedule_templates: scheduleTemplates,
+    workforce_schedule_template_shifts: scheduleTemplateShifts,
     workforce_punches: [],
     workforce_breaks: [],
+    workforce_time_off_requests: [
+      {
+        id: 'wf_to_request_1',
+        employee_id: workforceEmployees[2]?.id || workforceEmployees[0]?.id || '',
+        request_type: 'day_off',
+        start_date: today,
+        end_date: today,
+        hours: 8,
+        status: 'approved',
+        notes: 'Family event',
+        created_at: nowIso(),
+      },
+    ],
+    workforce_pto_balances: ptoBalances,
     workforce_tasks: [
       {
         id: 'wf_task_line_check',
@@ -3358,6 +3470,28 @@ const ensureTeamMembers = (db: PlainObject, users: PlainObject[]) => {
       existing.can_view_classes = Boolean(defaultMember.can_view_classes);
       changed = true;
     }
+
+    const sectionAccessDefaults: Array<[string, boolean]> = [
+      ['can_access_menu_management', Boolean(defaultMember.can_access_menu_management)],
+      ['can_access_operations', Boolean(defaultMember.can_access_operations)],
+      ['can_access_workforce', Boolean(defaultMember.can_access_workforce)],
+      ['can_access_content_management', Boolean(defaultMember.can_access_content_management)],
+      ['can_access_career_management', Boolean(defaultMember.can_access_career_management)],
+      ['can_access_investment', Boolean(defaultMember.can_access_investment)],
+      ['can_access_settings', Boolean(defaultMember.can_access_settings)],
+    ];
+
+    sectionAccessDefaults.forEach(([field, fallback]) => {
+      if (existing[field] !== undefined) return;
+      existing[field] = fallback;
+      changed = true;
+    });
+
+    if (existing.operations_classes_read_only === undefined) {
+      existing.operations_classes_read_only = Boolean(defaultMember.operations_classes_read_only);
+      changed = true;
+    }
+
     if (!existing.portal) {
       existing.portal = defaultMember.portal;
       changed = true;

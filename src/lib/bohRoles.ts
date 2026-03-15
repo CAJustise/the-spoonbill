@@ -7,6 +7,14 @@ export const ROLE_STAFF_ID = 'role_staff';
 
 export type BohPortal = 'admin' | 'host' | 'staff';
 export type BohCapability = 'reservations' | 'events_parties' | 'classes';
+export type BohSection =
+  | 'menu_management'
+  | 'operations'
+  | 'workforce'
+  | 'content_management'
+  | 'career_management'
+  | 'investment'
+  | 'settings';
 
 const ADMIN_ROLE_IDS = new Set<string>([ROLE_OWNER_ID, ROLE_MANAGER_ID]);
 const HOST_ROLE_IDS = new Set<string>([ROLE_HOST_ID]);
@@ -22,6 +30,14 @@ export interface TeamMemberAccess {
   can_view_reservations: boolean;
   can_view_events_parties: boolean;
   can_view_classes: boolean;
+  can_access_menu_management: boolean;
+  can_access_operations: boolean;
+  can_access_workforce: boolean;
+  can_access_content_management: boolean;
+  can_access_career_management: boolean;
+  can_access_investment: boolean;
+  can_access_settings: boolean;
+  operations_classes_read_only: boolean;
   active: boolean;
 }
 
@@ -37,18 +53,42 @@ export interface PortalCapabilities {
   canViewReservations: boolean;
   canViewEventsParties: boolean;
   canViewClasses: boolean;
+  operationsClassesReadOnly: boolean;
+  canAccessMenuManagement: boolean;
+  canAccessOperations: boolean;
+  canAccessWorkforce: boolean;
+  canAccessContentManagement: boolean;
+  canAccessCareerManagement: boolean;
+  canAccessInvestment: boolean;
+  canAccessSettings: boolean;
 }
 
 const EMPTY_CAPABILITIES: PortalCapabilities = {
   canViewReservations: false,
   canViewEventsParties: false,
   canViewClasses: false,
+  operationsClassesReadOnly: false,
+  canAccessMenuManagement: false,
+  canAccessOperations: false,
+  canAccessWorkforce: false,
+  canAccessContentManagement: false,
+  canAccessCareerManagement: false,
+  canAccessInvestment: false,
+  canAccessSettings: false,
 };
 
 const FULL_CAPABILITIES: PortalCapabilities = {
   canViewReservations: true,
   canViewEventsParties: true,
   canViewClasses: true,
+  operationsClassesReadOnly: false,
+  canAccessMenuManagement: true,
+  canAccessOperations: true,
+  canAccessWorkforce: true,
+  canAccessContentManagement: true,
+  canAccessCareerManagement: true,
+  canAccessInvestment: true,
+  canAccessSettings: true,
 };
 
 const normalizePortal = (value: unknown): BohPortal => {
@@ -76,16 +116,46 @@ const normalizeTeamMember = (row: unknown): TeamMemberAccess | null => {
     return null;
   }
 
+  const portal = normalizePortal(candidate.portal);
+  const inferredOperationsAccess =
+    Boolean(candidate.can_view_reservations) ||
+    Boolean(candidate.can_view_events_parties) ||
+    Boolean(candidate.can_view_classes);
+
+  const adminDefaults = portal === 'admin';
+
+  const canAccessOperations =
+    candidate.can_access_operations === undefined
+      ? adminDefaults || inferredOperationsAccess
+      : Boolean(candidate.can_access_operations);
+
+  const canViewReservations =
+    canAccessOperations && Boolean(candidate.can_view_reservations ?? adminDefaults);
+  const canViewEventsParties =
+    canAccessOperations && Boolean(candidate.can_view_events_parties ?? adminDefaults);
+  const canViewClasses =
+    canAccessOperations && Boolean(candidate.can_view_classes ?? adminDefaults);
+
   return {
     id: String(candidate.id ?? ''),
     user_id: userId,
     email: String(candidate.email ?? ''),
     name: String(candidate.name ?? ''),
     title: String(candidate.title ?? ''),
-    portal: normalizePortal(candidate.portal),
-    can_view_reservations: Boolean(candidate.can_view_reservations),
-    can_view_events_parties: Boolean(candidate.can_view_events_parties),
-    can_view_classes: Boolean(candidate.can_view_classes),
+    portal,
+    can_view_reservations: canViewReservations,
+    can_view_events_parties: canViewEventsParties,
+    can_view_classes: canViewClasses,
+    can_access_menu_management: Boolean(candidate.can_access_menu_management ?? adminDefaults),
+    can_access_operations: canAccessOperations,
+    can_access_workforce: Boolean(candidate.can_access_workforce ?? true),
+    can_access_content_management: Boolean(candidate.can_access_content_management ?? adminDefaults),
+    can_access_career_management: Boolean(candidate.can_access_career_management ?? adminDefaults),
+    can_access_investment: Boolean(candidate.can_access_investment ?? adminDefaults),
+    can_access_settings: Boolean(candidate.can_access_settings ?? adminDefaults),
+    operations_classes_read_only: Boolean(
+      candidate.operations_classes_read_only ?? (portal !== 'admin' && canViewClasses),
+    ),
     active: Boolean(candidate.active ?? true),
   };
 };
@@ -105,38 +175,31 @@ export const deriveRoleResolution = (roleIds: string[]): RoleResolution => {
   };
 };
 
-const derivePortalAccess = (roleResolution: RoleResolution, teamMember: TeamMemberAccess | null) => {
-  const access: Record<BohPortal, boolean> = {
-    admin: false,
-    host: false,
-    staff: false,
-  };
-
+const roleFallbackCapabilities = (roleResolution: RoleResolution): PortalCapabilities => {
   if (roleResolution.isAdmin) {
-    access.admin = true;
-    access.host = true;
-    access.staff = true;
-    return access;
-  }
-
-  if (teamMember) {
-    if (!teamMember.active) {
-      return access;
-    }
-
-    access[teamMember.portal] = true;
-    return access;
+    return FULL_CAPABILITIES;
   }
 
   if (roleResolution.isHost) {
-    access.host = true;
+    return {
+      ...EMPTY_CAPABILITIES,
+      canViewReservations: true,
+      canViewEventsParties: true,
+      canViewClasses: true,
+      operationsClassesReadOnly: true,
+      canAccessOperations: true,
+      canAccessWorkforce: true,
+    };
   }
 
   if (roleResolution.isStaff) {
-    access.staff = true;
+    return {
+      ...EMPTY_CAPABILITIES,
+      canAccessWorkforce: true,
+    };
   }
 
-  return access;
+  return EMPTY_CAPABILITIES;
 };
 
 export const derivePortalCapabilities = (
@@ -154,18 +217,25 @@ export const derivePortalCapabilities = (
       return EMPTY_CAPABILITIES;
     }
 
+    const canAccessOperations = Boolean(teamMember.can_access_operations);
+    const canViewClasses = canAccessOperations && Boolean(teamMember.can_view_classes);
+
     return {
-      canViewReservations: Boolean(teamMember.can_view_reservations),
-      canViewEventsParties: Boolean(teamMember.can_view_events_parties),
-      canViewClasses: Boolean(teamMember.can_view_classes),
+      canViewReservations: canAccessOperations && Boolean(teamMember.can_view_reservations),
+      canViewEventsParties: canAccessOperations && Boolean(teamMember.can_view_events_parties),
+      canViewClasses,
+      operationsClassesReadOnly: canViewClasses && Boolean(teamMember.operations_classes_read_only),
+      canAccessMenuManagement: Boolean(teamMember.can_access_menu_management),
+      canAccessOperations,
+      canAccessWorkforce: Boolean(teamMember.can_access_workforce),
+      canAccessContentManagement: Boolean(teamMember.can_access_content_management),
+      canAccessCareerManagement: Boolean(teamMember.can_access_career_management),
+      canAccessInvestment: Boolean(teamMember.can_access_investment),
+      canAccessSettings: Boolean(teamMember.can_access_settings),
     };
   }
 
-  if (roleResolution.isHost) {
-    return FULL_CAPABILITIES;
-  }
-
-  return EMPTY_CAPABILITIES;
+  return roleFallbackCapabilities(roleResolution);
 };
 
 export const canAccessCapability = (capabilities: PortalCapabilities, capability: BohCapability) => {
@@ -174,25 +244,54 @@ export const canAccessCapability = (capabilities: PortalCapabilities, capability
   return capabilities.canViewClasses;
 };
 
+export const canAccessSection = (capabilities: PortalCapabilities, section: BohSection) => {
+  if (section === 'menu_management') return capabilities.canAccessMenuManagement;
+  if (section === 'operations') return capabilities.canAccessOperations;
+  if (section === 'workforce') return capabilities.canAccessWorkforce;
+  if (section === 'content_management') return capabilities.canAccessContentManagement;
+  if (section === 'career_management') return capabilities.canAccessCareerManagement;
+  if (section === 'investment') return capabilities.canAccessInvestment;
+  return capabilities.canAccessSettings;
+};
+
+export const hasAnySectionAccess = (capabilities: PortalCapabilities) =>
+  canAccessSection(capabilities, 'menu_management') ||
+  canAccessSection(capabilities, 'operations') ||
+  canAccessSection(capabilities, 'workforce') ||
+  canAccessSection(capabilities, 'content_management') ||
+  canAccessSection(capabilities, 'career_management') ||
+  canAccessSection(capabilities, 'investment') ||
+  canAccessSection(capabilities, 'settings');
+
 export const canAccessPortal = (
   roleIds: string[],
   portal: BohPortal,
   teamMember: TeamMemberAccess | null = null,
 ) => {
+  const capabilities = derivePortalCapabilities(roleIds, teamMember);
+  if (portal === 'admin') {
+    return hasAnySectionAccess(capabilities);
+  }
+
   const roleResolution = deriveRoleResolution(roleIds);
-  return derivePortalAccess(roleResolution, teamMember)[portal];
+  if (roleResolution.isAdmin) return true;
+  if (teamMember && !teamMember.active) return false;
+  if (teamMember) return teamMember.portal === portal;
+  if (portal === 'host') return roleResolution.isHost;
+  return roleResolution.isStaff;
 };
 
 export const resolveDefaultPortal = (
   roleIds: string[],
   teamMember: TeamMemberAccess | null = null,
 ): BohPortal | null => {
-  const roleResolution = deriveRoleResolution(roleIds);
-  const access = derivePortalAccess(roleResolution, teamMember);
+  const capabilities = derivePortalCapabilities(roleIds, teamMember);
+  if (hasAnySectionAccess(capabilities)) return 'admin';
 
-  if (access.admin) return 'admin';
-  if (access.host) return 'host';
-  if (access.staff) return 'staff';
+  const roleResolution = deriveRoleResolution(roleIds);
+  if (teamMember?.portal) return teamMember.portal;
+  if (roleResolution.isHost) return 'host';
+  if (roleResolution.isStaff) return 'staff';
   return null;
 };
 

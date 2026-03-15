@@ -1,318 +1,312 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  UtensilsCrossed, 
-  GlassWater, 
-  Calendar, 
+import {
+  UtensilsCrossed,
+  GlassWater,
+  Calendar,
   CalendarCheck2,
   CalendarRange,
   GraduationCap,
-  Image, 
-  Briefcase, 
-  Building2, 
-  FileText, 
-  Users, 
+  Image,
+  Briefcase,
+  Building2,
+  FileText,
+  Users,
   Settings,
   ChefHat,
-  DollarSign
+  DollarSign,
+  UserCog,
+  type LucideIcon,
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import {
+  canAccessCapability,
+  canAccessSection,
+  derivePortalCapabilities,
+  getRoleIdsForUser,
+  getTeamMemberForUser,
+  hasAnySectionAccess,
+  type BohCapability,
+  type BohSection,
+  type PortalCapabilities,
+} from '../../lib/bohRoles';
+
+interface DashboardCard {
+  to: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  section: BohSection;
+  capability?: BohCapability;
+}
+
+const SECTION_ORDER: BohSection[] = [
+  'menu_management',
+  'operations',
+  'workforce',
+  'content_management',
+  'career_management',
+  'investment',
+  'settings',
+];
+
+const SECTION_LABELS: Record<BohSection, string> = {
+  menu_management: 'Menu Management',
+  operations: 'Operations',
+  workforce: 'Workforce OS',
+  content_management: 'Content Management',
+  career_management: 'Career Management',
+  investment: 'Investment',
+  settings: 'Settings',
+};
+
+const EMPTY_CAPABILITIES: PortalCapabilities = {
+  canViewReservations: false,
+  canViewEventsParties: false,
+  canViewClasses: false,
+  operationsClassesReadOnly: false,
+  canAccessMenuManagement: false,
+  canAccessOperations: false,
+  canAccessWorkforce: false,
+  canAccessContentManagement: false,
+  canAccessCareerManagement: false,
+  canAccessInvestment: false,
+  canAccessSettings: false,
+};
+
+const DASHBOARD_CARDS: DashboardCard[] = [
+  {
+    to: '/admin/menu/tasting-menus',
+    title: 'Tasting Menus',
+    description: 'Manage tasting menus and prix fixe offerings.',
+    icon: ChefHat,
+    section: 'menu_management',
+  },
+  {
+    to: '/admin/menu/food-categories',
+    title: 'Food Categories',
+    description: 'Manage food menu categories and organization.',
+    icon: UtensilsCrossed,
+    section: 'menu_management',
+  },
+  {
+    to: '/admin/menu/food-items',
+    title: 'Food Items',
+    description: 'Manage food menu items and pricing.',
+    icon: UtensilsCrossed,
+    section: 'menu_management',
+  },
+  {
+    to: '/admin/menu/drink-categories',
+    title: 'Drink Categories',
+    description: 'Manage drink menu categories and organization.',
+    icon: GlassWater,
+    section: 'menu_management',
+  },
+  {
+    to: '/admin/menu/drink-items',
+    title: 'Drink Items',
+    description: 'Manage drink menu items and pricing.',
+    icon: GlassWater,
+    section: 'menu_management',
+  },
+  {
+    to: '/admin/boh/reservations',
+    title: 'Reservations',
+    description: 'Manage reservation bookings and capacity limits.',
+    icon: CalendarCheck2,
+    section: 'operations',
+    capability: 'reservations',
+  },
+  {
+    to: '/admin/boh/events-parties',
+    title: 'Event / Parties',
+    description: 'Track private event inquiries and schedule capacity.',
+    icon: CalendarRange,
+    section: 'operations',
+    capability: 'events_parties',
+  },
+  {
+    to: '/admin/boh/classes',
+    title: 'Classes',
+    description: 'Manage class sessions and attendee signups.',
+    icon: GraduationCap,
+    section: 'operations',
+    capability: 'classes',
+  },
+  {
+    to: '/admin/workforce',
+    title: 'Team + Labor',
+    description: 'Run team, shifts, tasks, compliance, and labor analytics.',
+    icon: Users,
+    section: 'workforce',
+  },
+  {
+    to: '/admin/workforce/team-access',
+    title: 'Team Access',
+    description: 'Configure section visibility and operations permissions by employee.',
+    icon: UserCog,
+    section: 'workforce',
+  },
+  {
+    to: '/admin/events',
+    title: 'Event Management',
+    description: 'Create and manage website events and experiences.',
+    icon: Calendar,
+    section: 'content_management',
+  },
+  {
+    to: '/admin/images',
+    title: 'Image Manager',
+    description: 'Upload and manage images for website content.',
+    icon: Image,
+    section: 'content_management',
+  },
+  {
+    to: '/admin/jobs',
+    title: 'Job Listings',
+    description: 'Manage open positions and job descriptions.',
+    icon: Briefcase,
+    section: 'career_management',
+  },
+  {
+    to: '/admin/departments',
+    title: 'Departments',
+    description: 'Manage restaurant departments and teams.',
+    icon: Building2,
+    section: 'career_management',
+  },
+  {
+    to: '/admin/job-types',
+    title: 'Employment Types',
+    description: 'Manage employment types and classifications.',
+    icon: FileText,
+    section: 'career_management',
+  },
+  {
+    to: '/admin/applications',
+    title: 'Job Applications',
+    description: 'Review and manage incoming applications.',
+    icon: Users,
+    section: 'career_management',
+  },
+  {
+    to: '/admin/investor-submissions',
+    title: 'Investor Submissions',
+    description: 'Review and manage investor interest submissions.',
+    icon: DollarSign,
+    section: 'investment',
+  },
+  {
+    to: '/admin/settings',
+    title: 'Settings',
+    description: 'Manage account settings and system preferences.',
+    icon: Settings,
+    section: 'settings',
+  },
+];
 
 const Dashboard: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [capabilities, setCapabilities] = useState<PortalCapabilities>(EMPTY_CAPABILITIES);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchAccess = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user?.id) return;
+
+        const roleIds = await getRoleIdsForUser(session.user.id);
+        const teamMember = await getTeamMemberForUser(session.user.id);
+        const nextCapabilities = derivePortalCapabilities(roleIds, teamMember);
+
+        if (!active) return;
+        setCapabilities(nextCapabilities);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void fetchAccess();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const visibleCardsBySection = useMemo(() => {
+    const grouped = {} as Record<BohSection, DashboardCard[]>;
+    SECTION_ORDER.forEach((section) => {
+      grouped[section] = [];
+    });
+
+    DASHBOARD_CARDS.forEach((card) => {
+      if (!canAccessSection(capabilities, card.section)) return;
+      if (card.capability && !canAccessCapability(capabilities, card.capability)) return;
+      grouped[card.section].push(card);
+    });
+
+    return grouped;
+  }, [capabilities]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ocean-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
       <div className="max-w-7xl mx-auto p-6">
         <h1 className="text-3xl font-display font-bold text-gray-900 mb-8">Admin Dashboard</h1>
-        
-        {/* Menu Management Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">Menu Management</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link 
-              to="/admin/menu/tasting-menus"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <ChefHat className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Tasting Menus</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage tasting menus and prix fixe offerings.
-              </p>
-            </Link>
 
-            <Link 
-              to="/admin/menu/food-categories"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <UtensilsCrossed className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Food Categories</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage food menu categories and organization.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/menu/food-items"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <UtensilsCrossed className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Food Items</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage food menu items and pricing.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/menu/drink-categories"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <GlassWater className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Drink Categories</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage drink menu categories and organization.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/menu/drink-items"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <GlassWater className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Drink Items</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage drink menu items and pricing.
-              </p>
-            </Link>
+        {!hasAnySectionAccess(capabilities) && (
+          <div className="bg-white border border-gray-100 rounded-lg shadow p-6 text-gray-600">
+            No dashboard sections are assigned to your account yet.
           </div>
-        </div>
+        )}
 
-        {/* Content Management Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">BOH Operations</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link
-              to="/admin/boh/reservations"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <CalendarCheck2 className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Reservations</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage reservation bookings and capacity limits.
-              </p>
-            </Link>
+        {SECTION_ORDER.map((section) => {
+          const cards = visibleCardsBySection[section];
+          if (!cards || cards.length === 0) return null;
 
-            <Link
-              to="/admin/boh/events-parties"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <CalendarRange className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Event / Parties</h3>
+          return (
+            <section key={section} className="mb-12">
+              <h2 className="text-xl font-display font-medium text-gray-600 mb-6">
+                {SECTION_LABELS[section]}
+              </h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {cards.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <Link
+                      key={card.to}
+                      to={card.to}
+                      className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
+                    >
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <h3 className="text-lg font-display font-bold text-gray-900">{card.title}</h3>
+                      </div>
+                      <p className="text-gray-600 font-garamond">{card.description}</p>
+                    </Link>
+                  );
+                })}
               </div>
-              <p className="text-gray-600 font-garamond">
-                Track private event inquiries and schedule capacity.
-              </p>
-            </Link>
-
-            <Link
-              to="/admin/boh/classes"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <GraduationCap className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Classes</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Schedule classes and manage attendee signups.
-              </p>
-            </Link>
-
-            <Link
-              to="/admin/workforce"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Users className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Workforce OS</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Run team, shifts, tasks, compliance, and labor analytics from one BOH ledger.
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        {/* Content Management Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">Content Management</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <Link 
-              to="/admin/events"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Calendar className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Event Management</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Create and manage events, classes, and special occasions.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/images"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Image className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Image Manager</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Upload and manage images for the website.
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        {/* Career Management Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">Career Management</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link 
-              to="/admin/jobs"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Briefcase className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Job Listings</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage open positions and job descriptions.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/departments"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Building2 className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Departments</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage restaurant departments and teams.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/job-types"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Employment Types</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage employment types and classifications.
-              </p>
-            </Link>
-
-            <Link 
-              to="/admin/applications"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Users className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Job Applications</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Review and manage employment applications.
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        {/* Investment Section */}
-        <div className="mb-12">
-          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">Investment</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link 
-              to="/admin/investor-submissions"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <DollarSign className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Investor Submissions</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Review and manage investor interest submissions.
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        {/* System Section */}
-        <div>
-          <h2 className="text-xl font-display font-medium text-gray-600 mb-6">System</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Link 
-              to="/admin/settings"
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow group"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-ocean-100 rounded-lg text-ocean-600 group-hover:bg-ocean-600 group-hover:text-white transition-colors">
-                  <Settings className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-display font-bold text-gray-900">Settings</h3>
-              </div>
-              <p className="text-gray-600 font-garamond">
-                Manage account settings and preferences.
-              </p>
-            </Link>
-          </div>
-        </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

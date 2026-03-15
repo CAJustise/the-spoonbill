@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Edit2, UserCog, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { BohPortal } from '../../lib/bohRoles';
 
 interface TeamMember {
   id: string;
@@ -9,10 +8,17 @@ interface TeamMember {
   email: string;
   name: string;
   title: string;
-  portal: BohPortal;
   can_view_reservations: boolean;
   can_view_events_parties: boolean;
   can_view_classes: boolean;
+  can_access_menu_management: boolean;
+  can_access_operations: boolean;
+  can_access_workforce: boolean;
+  can_access_content_management: boolean;
+  can_access_career_management: boolean;
+  can_access_investment: boolean;
+  can_access_settings: boolean;
+  operations_classes_read_only: boolean;
   active: boolean;
 }
 
@@ -46,10 +52,17 @@ const TeamMembersAdmin: React.FC = () => {
         email: String((member as { email?: unknown }).email || ''),
         name: String((member as { name?: unknown }).name || ''),
         title: String((member as { title?: unknown }).title || ''),
-        portal: ((member as { portal?: unknown }).portal as BohPortal) || 'staff',
         can_view_reservations: Boolean((member as { can_view_reservations?: unknown }).can_view_reservations),
         can_view_events_parties: Boolean((member as { can_view_events_parties?: unknown }).can_view_events_parties),
         can_view_classes: Boolean((member as { can_view_classes?: unknown }).can_view_classes),
+        can_access_menu_management: Boolean((member as { can_access_menu_management?: unknown }).can_access_menu_management),
+        can_access_operations: Boolean((member as { can_access_operations?: unknown }).can_access_operations),
+        can_access_workforce: (member as { can_access_workforce?: unknown }).can_access_workforce !== false,
+        can_access_content_management: Boolean((member as { can_access_content_management?: unknown }).can_access_content_management),
+        can_access_career_management: Boolean((member as { can_access_career_management?: unknown }).can_access_career_management),
+        can_access_investment: Boolean((member as { can_access_investment?: unknown }).can_access_investment),
+        can_access_settings: Boolean((member as { can_access_settings?: unknown }).can_access_settings),
+        operations_classes_read_only: Boolean((member as { operations_classes_read_only?: unknown }).operations_classes_read_only),
         active: (member as { active?: unknown }).active !== false,
       })),
     );
@@ -75,65 +88,30 @@ const TeamMembersAdmin: React.FC = () => {
     [members],
   );
 
-  const syncPortalRole = async (member: TeamMember) => {
-    if (!member.user_id) return;
-
-    if (member.portal === 'admin') {
-      return;
-    }
-
-    const targetRole = member.portal === 'host' ? 'role_host' : 'role_staff';
-    const oppositeRole = member.portal === 'host' ? 'role_staff' : 'role_host';
-
-    const { error: removeError } = await supabase
-      .from('admin_user_roles')
-      .delete()
-      .eq('user_id', member.user_id)
-      .eq('role_id', oppositeRole);
-
-    if (removeError) {
-      throw new Error(removeError.message || 'Failed updating team role');
-    }
-
-    const { data: existingLinks, error: loadError } = await supabase
-      .from('admin_user_roles')
-      .select('id')
-      .eq('user_id', member.user_id)
-      .eq('role_id', targetRole);
-
-    if (loadError) {
-      throw new Error(loadError.message || 'Failed loading team role');
-    }
-
-    if (Array.isArray(existingLinks) && existingLinks.length > 0) {
-      return;
-    }
-
-    const { error: insertError } = await supabase.from('admin_user_roles').insert([
-      {
-        user_id: member.user_id,
-        role_id: targetRole,
-      },
-    ]);
-
-    if (insertError) {
-      throw new Error(insertError.message || 'Failed assigning team role');
-    }
-  };
-
   const handleSaveMember = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingMember) return;
 
     const formData = new FormData(event.currentTarget);
+    const canAccessOperations = Boolean(formData.get('can_access_operations'));
+    const canViewClasses = canAccessOperations && Boolean(formData.get('can_view_classes'));
+
     const payload: TeamMember = {
       ...editingMember,
       name: String(formData.get('name') || '').trim(),
       title: String(formData.get('title') || '').trim(),
-      portal: (String(formData.get('portal') || 'staff').trim().toLowerCase() as BohPortal) || 'staff',
-      can_view_reservations: Boolean(formData.get('can_view_reservations')),
-      can_view_events_parties: Boolean(formData.get('can_view_events_parties')),
-      can_view_classes: Boolean(formData.get('can_view_classes')),
+      can_access_menu_management: Boolean(formData.get('can_access_menu_management')),
+      can_access_operations: canAccessOperations,
+      can_access_workforce: Boolean(formData.get('can_access_workforce')),
+      can_access_content_management: Boolean(formData.get('can_access_content_management')),
+      can_access_career_management: Boolean(formData.get('can_access_career_management')),
+      can_access_investment: Boolean(formData.get('can_access_investment')),
+      can_access_settings: Boolean(formData.get('can_access_settings')),
+      can_view_reservations: canAccessOperations && Boolean(formData.get('can_view_reservations')),
+      can_view_events_parties: canAccessOperations && Boolean(formData.get('can_view_events_parties')),
+      can_view_classes: canViewClasses,
+      operations_classes_read_only:
+        canViewClasses && Boolean(formData.get('operations_classes_read_only')),
       active: Boolean(formData.get('active')),
     };
 
@@ -149,21 +127,27 @@ const TeamMembersAdmin: React.FC = () => {
         .update({
           name: payload.name,
           title: payload.title,
-          portal: payload.portal,
+          can_access_menu_management: payload.can_access_menu_management,
+          can_access_operations: payload.can_access_operations,
+          can_access_workforce: payload.can_access_workforce,
+          can_access_content_management: payload.can_access_content_management,
+          can_access_career_management: payload.can_access_career_management,
+          can_access_investment: payload.can_access_investment,
+          can_access_settings: payload.can_access_settings,
           can_view_reservations: payload.can_view_reservations,
           can_view_events_parties: payload.can_view_events_parties,
           can_view_classes: payload.can_view_classes,
+          operations_classes_read_only: payload.operations_classes_read_only,
           active: payload.active,
         })
         .eq('id', payload.id);
 
       if (error) throw error;
 
-      await syncPortalRole(payload);
       await fetchMembers();
       setEditingMember(null);
-    } catch (error) {
-      alert(`Failed to save team member: ${(error as Error).message}`);
+    } catch (saveError) {
+      alert(`Failed to save team member: ${(saveError as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -181,9 +165,9 @@ const TeamMembersAdmin: React.FC = () => {
     <div className="min-h-screen bg-gray-50 pt-24">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         <div>
-          <h1 className="text-3xl font-display font-bold text-gray-900">Team Members</h1>
+          <h1 className="text-3xl font-display font-bold text-gray-900">Team Access</h1>
           <p className="text-gray-600 font-garamond">
-            Control each employee login portal and exactly which BOH dashboards they can access.
+            One login portal. Choose exactly which admin sections each team member can see.
           </p>
         </div>
 
@@ -200,10 +184,13 @@ const TeamMembersAdmin: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Team Member</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Portal</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Reservations</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Events</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Classes</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Menu</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Operations</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Workforce</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Content</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Career</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Investment</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Settings</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -216,14 +203,24 @@ const TeamMembersAdmin: React.FC = () => {
                       <div className="text-sm text-gray-500">{member.title || 'Team Member'}</div>
                       <div className="text-sm text-gray-500">{member.email}</div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-ocean-100 text-ocean-700 capitalize">
-                        {member.portal}
-                      </span>
+                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_access_menu_management ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-xs text-gray-700">
+                      {member.can_access_operations ? (
+                        <div className="space-y-1">
+                          <div>Res: {member.can_view_reservations ? 'Y' : 'N'}</div>
+                          <div>Events: {member.can_view_events_parties ? 'Y' : 'N'}</div>
+                          <div>Classes: {member.can_view_classes ? 'Y' : 'N'}</div>
+                          <div>Class RO: {member.operations_classes_read_only ? 'Y' : 'N'}</div>
+                        </div>
+                      ) : (
+                        'No'
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_view_reservations ? 'Yes' : 'No'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_view_events_parties ? 'Yes' : 'No'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_view_classes ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_access_workforce ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_access_content_management ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_access_career_management ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_access_investment ? 'Yes' : 'No'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{member.can_access_settings ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-3">
                       <span className={member.active ? 'text-green-600' : 'text-gray-500'}>
                         {member.active ? 'Active' : 'Inactive'}
@@ -243,7 +240,7 @@ const TeamMembersAdmin: React.FC = () => {
                 ))}
                 {!members.length && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                       No team members found.
                     </td>
                   </tr>
@@ -256,7 +253,7 @@ const TeamMembersAdmin: React.FC = () => {
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-display font-bold text-gray-900 mb-3">Dummy Team Logins</h2>
           <p className="text-sm text-gray-600 mb-4">
-            These 4 employees are pre-seeded so you can test Host/Staff access controls immediately.
+            These 4 employees are pre-seeded so you can test section visibility and operations permissions.
           </p>
           <div className="grid md:grid-cols-2 gap-3">
             {dummyMembers.map((member) => (
@@ -272,7 +269,7 @@ const TeamMembersAdmin: React.FC = () => {
 
       {editingMember && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-xl font-display font-bold text-gray-900">Edit Team Member</h3>
               <button
@@ -284,7 +281,7 @@ const TeamMembersAdmin: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={(event) => void handleSaveMember(event)} className="p-6 space-y-4">
+            <form onSubmit={(event) => void handleSaveMember(event)} className="p-6 space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -303,15 +300,7 @@ const TeamMembersAdmin: React.FC = () => {
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Login Portal</label>
-                  <select name="portal" defaultValue={editingMember.portal} className="w-full px-3 py-2 border rounded-lg">
-                    <option value="admin">Admin</option>
-                    <option value="host">Host</option>
-                    <option value="staff">Staff</option>
-                  </select>
-                </div>
-                <div className="flex items-end">
+                <div className="md:col-span-2">
                   <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                     <input
                       type="checkbox"
@@ -322,37 +311,61 @@ const TeamMembersAdmin: React.FC = () => {
                     Active
                   </label>
                 </div>
-                <div className="md:col-span-2 border-t pt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">BOH Dashboard Access</p>
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        name="can_view_reservations"
-                        defaultChecked={editingMember.can_view_reservations}
-                        className="rounded border-gray-300"
-                      />
-                      Reservations
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        name="can_view_events_parties"
-                        defaultChecked={editingMember.can_view_events_parties}
-                        className="rounded border-gray-300"
-                      />
-                      Event / Parties
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        name="can_view_classes"
-                        defaultChecked={editingMember.can_view_classes}
-                        className="rounded border-gray-300"
-                      />
-                      Classes
-                    </label>
-                  </div>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <p className="text-sm font-semibold text-gray-800 mb-3">Section Visibility</p>
+                <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_menu_management" defaultChecked={editingMember.can_access_menu_management} className="rounded border-gray-300" />
+                    Menu Management
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_operations" defaultChecked={editingMember.can_access_operations} className="rounded border-gray-300" />
+                    Operations
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_workforce" defaultChecked={editingMember.can_access_workforce} className="rounded border-gray-300" />
+                    Workforce
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_content_management" defaultChecked={editingMember.can_access_content_management} className="rounded border-gray-300" />
+                    Content Management
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_career_management" defaultChecked={editingMember.can_access_career_management} className="rounded border-gray-300" />
+                    Career Management
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_investment" defaultChecked={editingMember.can_access_investment} className="rounded border-gray-300" />
+                    Investment
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_access_settings" defaultChecked={editingMember.can_access_settings} className="rounded border-gray-300" />
+                    Settings
+                  </label>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <p className="text-sm font-semibold text-gray-800 mb-3">Operations Access</p>
+                <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_view_reservations" defaultChecked={editingMember.can_view_reservations} className="rounded border-gray-300" />
+                    Reservations
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_view_events_parties" defaultChecked={editingMember.can_view_events_parties} className="rounded border-gray-300" />
+                    Event / Parties
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="can_view_classes" defaultChecked={editingMember.can_view_classes} className="rounded border-gray-300" />
+                    Classes
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" name="operations_classes_read_only" defaultChecked={editingMember.operations_classes_read_only} className="rounded border-gray-300" />
+                    Classes Read-Only
+                  </label>
                 </div>
               </div>
 

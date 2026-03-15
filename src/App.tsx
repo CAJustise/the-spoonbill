@@ -32,7 +32,6 @@ import AdminLayout from './components/Admin/AdminLayout';
 import Dashboard from './components/Admin/Dashboard';
 import ImageManager from './components/Admin/ImageManager';
 import Settings from './components/Admin/Settings';
-import PortalDashboard from './components/Admin/PortalDashboard';
 import BOHReservations from './components/Admin/BOHReservations';
 import BOHEventParties from './components/Admin/BOHEventParties';
 import BOHClasses from './components/Admin/BOHClasses';
@@ -132,92 +131,62 @@ function App() {
         />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/careers/apply" element={<ApplicationForm />} />
-        <Route path="/admin/login" element={<LoginPage portal="admin" />} />
-        <Route path="/host/login" element={<LoginPage portal="host" />} />
-        <Route path="/staff/login" element={<LoginPage portal="staff" />} />
+        <Route path="/admin/login" element={<LoginPage />} />
+        <Route path="/host/login" element={<Navigate to="/admin/login" replace />} />
+        <Route path="/staff/login" element={<Navigate to="/admin/login" replace />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout><Dashboard /></AdminLayout>} />
         
         {/* Menu Management Routes */}
-        <Route path="/admin/menu/tasting-menus" element={<AdminLayout><TastingMenusAdmin /></AdminLayout>} />
-        <Route path="/admin/menu/food-categories" element={<AdminLayout><FoodCategoriesAdmin /></AdminLayout>} />
-        <Route path="/admin/menu/food-items" element={<AdminLayout><FoodItemsAdmin /></AdminLayout>} />
-        <Route path="/admin/menu/drink-categories" element={<AdminLayout><DrinkCategoriesAdmin /></AdminLayout>} />
-        <Route path="/admin/menu/drink-items" element={<AdminLayout><DrinkItemsAdmin /></AdminLayout>} />
+        <Route path="/admin/menu/tasting-menus" element={<AdminLayout requiredSection="menu_management"><TastingMenusAdmin /></AdminLayout>} />
+        <Route path="/admin/menu/food-categories" element={<AdminLayout requiredSection="menu_management"><FoodCategoriesAdmin /></AdminLayout>} />
+        <Route path="/admin/menu/food-items" element={<AdminLayout requiredSection="menu_management"><FoodItemsAdmin /></AdminLayout>} />
+        <Route path="/admin/menu/drink-categories" element={<AdminLayout requiredSection="menu_management"><DrinkCategoriesAdmin /></AdminLayout>} />
+        <Route path="/admin/menu/drink-items" element={<AdminLayout requiredSection="menu_management"><DrinkItemsAdmin /></AdminLayout>} />
         
-        <Route path="/admin/events" element={<AdminLayout><EventsAdmin /></AdminLayout>} />
-        <Route path="/admin/images" element={<AdminLayout><ImageManager /></AdminLayout>} />
-        <Route path="/admin/boh/reservations" element={<AdminLayout><BOHReservations /></AdminLayout>} />
-        <Route path="/admin/boh/events-parties" element={<AdminLayout><BOHEventParties /></AdminLayout>} />
-        <Route path="/admin/boh/classes" element={<AdminLayout><BOHClasses /></AdminLayout>} />
-        <Route path="/admin/workforce" element={<AdminLayout><WorkforceManagement /></AdminLayout>} />
+        <Route path="/admin/events" element={<AdminLayout requiredSection="content_management"><EventsAdmin /></AdminLayout>} />
+        <Route path="/admin/images" element={<AdminLayout requiredSection="content_management"><ImageManager /></AdminLayout>} />
+        <Route
+          path="/admin/boh/reservations"
+          element={
+            <AdminLayout requiredSection="operations" requiredCapability="reservations">
+              <BOHReservations />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/boh/events-parties"
+          element={
+            <AdminLayout requiredSection="operations" requiredCapability="events_parties">
+              <BOHEventParties />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/admin/boh/classes"
+          element={
+            <AdminLayout requiredSection="operations" requiredCapability="classes">
+              <BOHClasses />
+            </AdminLayout>
+          }
+        />
+        <Route path="/admin/workforce" element={<AdminLayout requiredSection="workforce"><WorkforceManagement /></AdminLayout>} />
+        <Route path="/admin/workforce/team-access" element={<AdminLayout requiredSection="workforce"><TeamMembersAdmin /></AdminLayout>} />
         
         {/* Career Management Routes */}
-        <Route path="/admin/jobs" element={<AdminLayout><JobsAdmin /></AdminLayout>} />
-        <Route path="/admin/departments" element={<AdminLayout><DepartmentsAdmin /> </AdminLayout>} />
-        <Route path="/admin/job-types" element={<AdminLayout><JobTypesAdmin /></AdminLayout>} />
-        <Route path="/admin/applications" element={<AdminLayout><ApplicationsAdmin /></AdminLayout>} />
+        <Route path="/admin/jobs" element={<AdminLayout requiredSection="career_management"><JobsAdmin /></AdminLayout>} />
+        <Route path="/admin/departments" element={<AdminLayout requiredSection="career_management"><DepartmentsAdmin /> </AdminLayout>} />
+        <Route path="/admin/job-types" element={<AdminLayout requiredSection="career_management"><JobTypesAdmin /></AdminLayout>} />
+        <Route path="/admin/applications" element={<AdminLayout requiredSection="career_management"><ApplicationsAdmin /></AdminLayout>} />
         
         {/* Investment Management Route */}
-        <Route path="/admin/investor-submissions" element={<AdminLayout><InvestorSubmissionsAdmin /></AdminLayout>} />
+        <Route path="/admin/investor-submissions" element={<AdminLayout requiredSection="investment"><InvestorSubmissionsAdmin /></AdminLayout>} />
         
-        <Route path="/admin/team-members" element={<AdminLayout><TeamMembersAdmin /></AdminLayout>} />
-        <Route path="/admin/settings" element={<AdminLayout><Settings /></AdminLayout>} />
-
-        {/* Host Routes */}
-        <Route path="/host" element={<AdminLayout portal="host"><PortalDashboard portal="host" /></AdminLayout>} />
-        <Route
-          path="/host/reservations"
-          element={
-            <AdminLayout portal="host" requiredCapability="reservations">
-              <BOHReservations canManageCapacity={false} canCreateReservations canEditReservations canDeleteReservations={false} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/host/events-parties"
-          element={
-            <AdminLayout portal="host" requiredCapability="events_parties">
-              <BOHEventParties canManageCapacity={false} canEditBookings canDeleteBookings={false} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/host/classes"
-          element={
-            <AdminLayout portal="host" requiredCapability="classes">
-              <BOHClasses canManageClassSetup={false} canEditBookings canDeleteBookings={false} />
-            </AdminLayout>
-          }
-        />
-
-        {/* Staff Routes */}
-        <Route path="/staff" element={<AdminLayout portal="staff"><PortalDashboard portal="staff" /></AdminLayout>} />
-        <Route
-          path="/staff/reservations"
-          element={
-            <AdminLayout portal="staff" requiredCapability="reservations">
-              <BOHReservations canManageCapacity={false} canCreateReservations canEditReservations canDeleteReservations={false} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/staff/events-parties"
-          element={
-            <AdminLayout portal="staff" requiredCapability="events_parties">
-              <BOHEventParties canManageCapacity={false} canEditBookings canDeleteBookings={false} />
-            </AdminLayout>
-          }
-        />
-        <Route
-          path="/staff/classes"
-          element={
-            <AdminLayout portal="staff" requiredCapability="classes">
-              <BOHClasses canManageClassSetup={false} canEditBookings canDeleteBookings={false} />
-            </AdminLayout>
-          }
-        />
+        <Route path="/admin/team-members" element={<Navigate to="/admin/workforce/team-access" replace />} />
+        <Route path="/admin/settings" element={<AdminLayout requiredSection="settings"><Settings /></AdminLayout>} />
+        <Route path="/host/*" element={<Navigate to="/admin/login" replace />} />
+        <Route path="/staff/*" element={<Navigate to="/admin/login" replace />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
