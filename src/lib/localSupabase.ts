@@ -1265,6 +1265,7 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
       id: `wf_er_${employee.id}`,
       employee_id: employee.id,
       role_id: roleId,
+      hourly_rate: workforceRateForRole(roleId),
       primary_role: true,
       active: true,
       created_at: nowIso(),
@@ -3611,6 +3612,55 @@ const ensureWorkforceFoundation = (db: PlainObject, users: PlainObject[]) => {
       }
 
       return nextEmployee;
+    });
+  }
+
+  if (Array.isArray(db.workforce_employee_roles)) {
+    const roleRateByRoleId = Array.isArray(db.workforce_roles)
+      ? (db.workforce_roles as PlainObject[]).reduce((accumulator, role) => {
+          if (!role?.id) return accumulator;
+          accumulator[String(role.id)] = Number(role.hourly_rate || workforceRateForRole(String(role.id)));
+          return accumulator;
+        }, {} as Record<string, number>)
+      : {};
+
+    db.workforce_employee_roles = db.workforce_employee_roles.map((assignment: PlainObject, index: number) => {
+      const nextAssignment = { ...assignment };
+
+      if (!nextAssignment.id) {
+        const employeeId = String(nextAssignment.employee_id || `employee_${index}`);
+        const roleId = String(nextAssignment.role_id || 'wf_role_server');
+        nextAssignment.id = `wf_er_${employeeId}_${roleId}_${index}`;
+        changed = true;
+      }
+
+      if (!nextAssignment.role_id) {
+        nextAssignment.role_id = 'wf_role_server';
+        changed = true;
+      }
+
+      if (nextAssignment.hourly_rate === undefined || nextAssignment.hourly_rate === null) {
+        const roleId = String(nextAssignment.role_id || 'wf_role_server');
+        nextAssignment.hourly_rate = roleRateByRoleId[roleId] ?? workforceRateForRole(roleId);
+        changed = true;
+      }
+
+      if (nextAssignment.primary_role === undefined) {
+        nextAssignment.primary_role = index === 0;
+        changed = true;
+      }
+
+      if (nextAssignment.active === undefined) {
+        nextAssignment.active = true;
+        changed = true;
+      }
+
+      if (!nextAssignment.created_at) {
+        nextAssignment.created_at = nowIso();
+        changed = true;
+      }
+
+      return nextAssignment;
     });
   }
 

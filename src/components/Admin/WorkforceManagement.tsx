@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { supabase, supabaseAdmin } from '../../lib/supabase';
+import { calculateCaliforniaLaborSummary } from '../../lib/caLabor';
 
 interface WorkforceEmployee {
   id: string;
@@ -108,6 +109,19 @@ interface WorkforceBreak {
   punch_id: string;
   start_time: string;
   end_time?: string | null;
+  break_type?: string | null;
+  paid_break?: boolean;
+  expected_minutes?: number | null;
+}
+
+interface WorkforceEmployeeRoleAssignment {
+  id: string;
+  employee_id: string;
+  role_id: string;
+  hourly_rate?: number;
+  primary_role?: boolean;
+  active?: boolean;
+  created_at?: string;
 }
 
 interface WorkforceTask {
@@ -303,11 +317,24 @@ const buildEmployeeDraft = (roleId = '', hourlyRate = '24') => ({
   active: true,
 });
 
+const buildRoleRateDraft = (
+  roleId = '',
+  hourlyRate = '24',
+  primaryRole = false,
+) => ({
+  id: `role_draft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+  role_id: roleId,
+  hourly_rate: hourlyRate,
+  primary_role: primaryRole,
+  active: true,
+});
+
 const WorkforceManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [employees, setEmployees] = useState<WorkforceEmployee[]>([]);
+  const [employeeRoles, setEmployeeRoles] = useState<WorkforceEmployeeRoleAssignment[]>([]);
   const [roles, setRoles] = useState<WorkforceRole[]>([]);
   const [stations, setStations] = useState<WorkforceStation[]>([]);
   const [shifts, setShifts] = useState<WorkforceShift[]>([]);
@@ -340,6 +367,7 @@ const WorkforceManagement: React.FC = () => {
   const [draggingShiftId, setDraggingShiftId] = useState<string | null>(null);
 
   const [employeeDraft, setEmployeeDraft] = useState(() => buildEmployeeDraft());
+  const [employeeRoleDrafts, setEmployeeRoleDrafts] = useState<Array<ReturnType<typeof buildRoleRateDraft>>>([]);
 
   const [documentDraft, setDocumentDraft] = useState({
     doc_type: 'ID Scan',
@@ -383,6 +411,7 @@ const WorkforceManagement: React.FC = () => {
   const fetchAll = async () => {
     const [
       employeesRes,
+      employeeRolesRes,
       rolesRes,
       stationsRes,
       shiftsRes,
@@ -399,6 +428,7 @@ const WorkforceManagement: React.FC = () => {
       ptoBalancesRes,
     ] = await Promise.all([
       supabase.from('workforce_employees').select('*').order('name'),
+      supabase.from('workforce_employee_roles').select('*').order('created_at'),
       supabase.from('workforce_roles').select('*').order('name'),
       supabase.from('workforce_stations').select('*').order('name'),
       supabase.from('workforce_shifts').select('*').order('start_time'),
@@ -417,6 +447,7 @@ const WorkforceManagement: React.FC = () => {
 
     const errors = [
       employeesRes.error,
+      employeeRolesRes.error,
       rolesRes.error,
       stationsRes.error,
       shiftsRes.error,
@@ -438,6 +469,7 @@ const WorkforceManagement: React.FC = () => {
     }
 
     setEmployees((employeesRes.data as WorkforceEmployee[]) || []);
+    setEmployeeRoles((employeeRolesRes.data as WorkforceEmployeeRoleAssignment[]) || []);
     setRoles((rolesRes.data as WorkforceRole[]) || []);
     setStations((stationsRes.data as WorkforceStation[]) || []);
     setShifts((shiftsRes.data as WorkforceShift[]) || []);
@@ -487,7 +519,13 @@ const WorkforceManagement: React.FC = () => {
         hourly_rate: current.hourly_rate || String(roles[0].hourly_rate || 24),
       }));
     }
-  }, [employeeDraft.role_id, roles]);
+
+    if (employeeRoleDrafts.length === 0 && roles.length > 0) {
+      setEmployeeRoleDrafts([
+        buildRoleRateDraft(roles[0].id, String(roles[0].hourly_rate || 24), true),
+      ]);
+    }
+  }, [employeeDraft.role_id, employeeRoleDrafts.length, roles]);
 
   useEffect(() => {
     if (!shiftDraft.employee_id && employees.length > 0) {
@@ -576,15 +614,45 @@ const WorkforceManagement: React.FC = () => {
     [teamMembers],
   );
 
-  const workforceRoleIdByEmployee = useMemo(
+  const employeeRoleAssignmentsByEmployeeId = useMemo(
     () =>
-      shifts.reduce((accumulator, shift) => {
-        if (!accumulator[shift.employee_id]) {
-          accumulator[shift.employee_id] = shift.role_id;
+      employeeRoles.reduce((accumulator, assignment) => {
+        if (!assignment.employee_id) return accumulator;
+        if (!accumulator[assignment.employee_id]) {
+          accumulator[assignment.employee_id] = [];
+        }
+        accumulator[assignment.employee_id].push(assignment);
+        return accumulator;
+      }, {} as Record<string, WorkforceEmployeeRoleAssignment[]>),
+    [employeeRoles],
+  );
+
+  const primaryEmployeeRoleByEmployeeId = useMemo(
+    () =>
+      Object.entries(employeeRoleAssignmentsByEmployeeId).reduce((accumulator, [employeeId, assignments]) => {
+        const primary = assignments.find((assignment) => Boolean(assignment.primary_role)) || assignments[0];
+        if (primary) {
+          accumulator[employeeId] = primary;
         }
         return accumulator;
-      }, {} as Record<string, string>),
-    [shifts],
+      }, {} as Record<string, WorkforceEmployeeRoleAssignment>),
+    [employeeRoleAssignmentsByEmployeeId],
+  );
+
+  const roleRateByEmployeeIdRoleId = useMemo(
+    () =>
+      employeeRoles.reduce((accumulator, assignment) => {
+        if (!assignment.employee_id || !assignment.role_id) return accumulator;
+        const employeeId = assignment.employee_id;
+        if (!accumulator[employeeId]) {
+          accumulator[employeeId] = {};
+        }
+        accumulator[employeeId][assignment.role_id] = Number(
+          assignment.hourly_rate ?? roleById[assignment.role_id]?.hourly_rate ?? 0,
+        );
+        return accumulator;
+      }, {} as Record<string, Record<string, number>>),
+    [employeeRoles, roleById],
   );
 
   const ptoByEmployeeId = useMemo(
@@ -595,6 +663,52 @@ const WorkforceManagement: React.FC = () => {
       }, {} as Record<string, WorkforcePtoBalance>),
     [ptoBalances],
   );
+
+  const rolesForSelectedShiftEmployee = useMemo(() => {
+    if (!shiftDraft.employee_id) return roles;
+    const assignments = (employeeRoleAssignmentsByEmployeeId[shiftDraft.employee_id] || []).filter(
+      (assignment) => assignment.active !== false,
+    );
+    if (!assignments.length) return roles;
+    const allowedRoleIds = new Set(assignments.map((assignment) => assignment.role_id));
+    return roles.filter((role) => allowedRoleIds.has(role.id));
+  }, [employeeRoleAssignmentsByEmployeeId, roles, shiftDraft.employee_id]);
+
+  useEffect(() => {
+    if (!shiftDraft.employee_id) return;
+
+    const assignments = (employeeRoleAssignmentsByEmployeeId[shiftDraft.employee_id] || []).filter(
+      (assignment) => assignment.active !== false,
+    );
+    if (!assignments.length) return;
+
+    const primaryAssignment =
+      assignments.find((assignment) => Boolean(assignment.primary_role)) || assignments[0];
+    const allowedRoleIds = new Set(assignments.map((assignment) => assignment.role_id));
+    const currentRate =
+      roleRateByEmployeeIdRoleId[shiftDraft.employee_id]?.[shiftDraft.role_id] ??
+      roleById[shiftDraft.role_id]?.hourly_rate ??
+      24;
+
+    setShiftDraft((current) => {
+      const nextRoleId = allowedRoleIds.has(current.role_id) ? current.role_id : primaryAssignment.role_id;
+      const nextRate =
+        roleRateByEmployeeIdRoleId[current.employee_id]?.[nextRoleId] ??
+        roleById[nextRoleId]?.hourly_rate ??
+        currentRate;
+      const shouldReplaceRate = !current.wage_rate || current.role_id !== nextRoleId;
+
+      if (current.role_id === nextRoleId && !shouldReplaceRate) {
+        return current;
+      }
+
+      return {
+        ...current,
+        role_id: nextRoleId,
+        wage_rate: shouldReplaceRate ? String(nextRate) : current.wage_rate,
+      };
+    });
+  }, [employeeRoleAssignmentsByEmployeeId, roleById, roleRateByEmployeeIdRoleId, shiftDraft.employee_id, shiftDraft.role_id]);
 
   const today = startOfToday();
   const schedulerMinDate = addDays(today, -28);
@@ -698,6 +812,18 @@ const WorkforceManagement: React.FC = () => {
   );
 
   const openPunches = useMemo(() => punches.filter((punch) => !punch.clock_out), [punches]);
+  const currentWeekStart = useMemo(() => startOfWeek(today), [today]);
+  const currentWeekEnd = useMemo(() => addDays(currentWeekStart, 7), [currentWeekStart]);
+
+  const currentWeekPunches = useMemo(
+    () =>
+      punches.filter((punch) => {
+        const startsAt = new Date(punch.clock_in).getTime();
+        if (Number.isNaN(startsAt)) return false;
+        return startsAt >= currentWeekStart.getTime() && startsAt < currentWeekEnd.getTime();
+      }),
+    [currentWeekEnd, currentWeekStart, punches],
+  );
 
   const scheduledHours = useMemo(
     () =>
@@ -710,34 +836,30 @@ const WorkforceManagement: React.FC = () => {
     [shiftsToday],
   );
 
-  const workedHours = useMemo(
-    () =>
-      punches.reduce((total, punch) => {
-        const clockIn = new Date(punch.clock_in).getTime();
-        const clockOut = new Date(punch.clock_out || new Date().toISOString()).getTime();
-        if (Number.isNaN(clockIn) || Number.isNaN(clockOut) || clockOut <= clockIn) return total;
-        return total + (clockOut - clockIn) / 3600000;
-      }, 0),
-    [punches],
-  );
+  const caLaborSummary = useMemo(() => {
+    const punchInput = currentWeekPunches.map((punch) => {
+      const shift = shifts.find((candidate) => candidate.id === punch.shift_id);
+      const fallbackRoleRate = shift?.role_id ? Number(roleById[shift.role_id]?.hourly_rate || 0) : 0;
+      const fallbackAssignedRate = shift?.employee_id && shift?.role_id
+        ? Number(roleRateByEmployeeIdRoleId[shift.employee_id]?.[shift.role_id] || 0)
+        : 0;
+      const rate = Number(shift?.wage_rate || fallbackAssignedRate || fallbackRoleRate || 0);
 
-  const laborCost = useMemo(
-    () =>
-      punches.reduce((total, punch) => {
-        const shift = shifts.find((candidate) => candidate.id === punch.shift_id);
-        if (!shift) return total;
+      return {
+        id: punch.id,
+        employee_id: punch.employee_id,
+        clock_in: punch.clock_in,
+        clock_out: punch.clock_out,
+        rate,
+        breaks: breaks.filter((entry) => entry.punch_id === punch.id),
+      };
+    });
 
-        const clockIn = new Date(punch.clock_in).getTime();
-        const clockOut = new Date(punch.clock_out || new Date().toISOString()).getTime();
-        if (Number.isNaN(clockIn) || Number.isNaN(clockOut) || clockOut <= clockIn) return total;
+    return calculateCaliforniaLaborSummary(punchInput, new Date());
+  }, [breaks, currentWeekPunches, roleById, roleRateByEmployeeIdRoleId, shifts]);
 
-        const hours = (clockOut - clockIn) / 3600000;
-        const roleRate = Number(roleById[shift.role_id]?.hourly_rate || 0);
-        const rate = Number(shift.wage_rate || roleRate || 0);
-        return total + hours * rate;
-      }, 0),
-    [punches, roleById, shifts],
-  );
+  const workedHours = caLaborSummary.totalHours;
+  const laborCost = caLaborSummary.totalCost;
 
   const unresolvedCriticalTasks = useMemo(
     () =>
@@ -772,8 +894,20 @@ const WorkforceManagement: React.FC = () => {
 
       const linkedBreaks = breaks.filter((candidate) => candidate.punch_id === punch.id);
       const employeeName = employeeById[punch.employee_id]?.name || 'Employee';
+      const hasMealBreak = linkedBreaks.some((entry) => {
+        const explicitUnpaid = entry.paid_break === false;
+        const type = String(entry.break_type || '').toLowerCase();
+        if (explicitUnpaid || type.includes('meal') || type.includes('unpaid')) return true;
+        if (entry.expected_minutes !== undefined && entry.expected_minutes !== null) {
+          return Number(entry.expected_minutes) >= 30;
+        }
+        const startMs = new Date(entry.start_time).getTime();
+        const endMs = new Date(entry.end_time || new Date().toISOString()).getTime();
+        if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) return false;
+        return (endMs - startMs) / 60000 >= 30;
+      });
 
-      if (durationHours > 5 && linkedBreaks.length === 0) {
+      if (durationHours > 5 && !hasMealBreak) {
         warnings.push({
           code: 'MEAL_BREAK_MISSING',
           severity: durationHours > 6 ? 'critical' : 'warning',
@@ -819,28 +953,50 @@ const WorkforceManagement: React.FC = () => {
 
   const openCreateEmployeeEditor = () => {
     const defaultRole = roles[0];
+    const defaultRate = String(defaultRole?.hourly_rate || 24);
     setEmployeeEditorMode('create');
     setEditingEmployee(null);
     setEmployeeDraft(
-      buildEmployeeDraft(defaultRole?.id || '', String(defaultRole?.hourly_rate || 24)),
+      buildEmployeeDraft(defaultRole?.id || '', defaultRate),
     );
+    setEmployeeRoleDrafts([buildRoleRateDraft(defaultRole?.id || '', defaultRate, true)]);
     setDocumentDraft({ doc_type: 'ID Scan', notes: '' });
     setShowEmployeeForm(true);
   };
 
   const openEditEmployeeEditor = (employee: WorkforceEmployee) => {
-    const primaryRoleId = workforceRoleIdByEmployee[employee.id] || roles[0]?.id || '';
+    const assignments = (employeeRoleAssignmentsByEmployeeId[employee.id] || []).filter(
+      (assignment) => assignment.active !== false,
+    );
+    const primaryAssignment =
+      assignments.find((assignment) => Boolean(assignment.primary_role)) || assignments[0];
+    const primaryRoleId = primaryAssignment?.role_id || roles[0]?.id || '';
+    const primaryRate = Number(
+      primaryAssignment?.hourly_rate ?? employee.hourly_rate ?? roleById[primaryRoleId]?.hourly_rate ?? 24,
+    );
     const teamMember = teamMemberByUserId[String(employee.user_id || '')];
     const pto = ptoByEmployeeId[employee.id];
 
+    const assignmentDrafts =
+      assignments.length > 0
+        ? assignments.map((assignment, index) =>
+            buildRoleRateDraft(
+              assignment.role_id,
+              String(assignment.hourly_rate ?? roleById[assignment.role_id]?.hourly_rate ?? 24),
+              Boolean(assignment.primary_role) || index === 0,
+            ),
+          )
+        : [buildRoleRateDraft(primaryRoleId, String(primaryRate), true)];
+
     setEmployeeEditorMode('edit');
     setEditingEmployee(employee);
+    setEmployeeRoleDrafts(assignmentDrafts);
     setEmployeeDraft({
       name: employee.name || '',
       email: String(employee.email || ''),
       title: String(employee.title || roleById[primaryRoleId]?.name || ''),
       role_id: primaryRoleId,
-      hourly_rate: String(employee.hourly_rate || roleById[primaryRoleId]?.hourly_rate || 24),
+      hourly_rate: String(primaryRate),
       hire_date: String(employee.hire_date || new Date().toISOString().slice(0, 10)),
       availability: String(employee.availability || 'Open availability'),
       login_username: String(employee.login_username || employee.email || ''),
@@ -874,6 +1030,59 @@ const WorkforceManagement: React.FC = () => {
   const closeEmployeeEditor = () => {
     setShowEmployeeForm(false);
     setEditingEmployee(null);
+    setEmployeeRoleDrafts([]);
+  };
+
+  const addRoleDraftRow = () => {
+    const fallbackRole = roles[0]?.id || '';
+    const fallbackRate = String(roleById[fallbackRole]?.hourly_rate || 24);
+    setEmployeeRoleDrafts((current) => [
+      ...current,
+      buildRoleRateDraft(fallbackRole, fallbackRate, current.length === 0),
+    ]);
+  };
+
+  const updateRoleDraft = (
+    rowId: string,
+    patch: Partial<ReturnType<typeof buildRoleRateDraft>>,
+  ) => {
+    setEmployeeRoleDrafts((current) =>
+      current.map((row) => {
+        if (row.id !== rowId) return row;
+        const nextRoleId = patch.role_id ?? row.role_id;
+        const nextHourlyRate =
+          patch.hourly_rate ??
+          (patch.role_id ? String(roleById[nextRoleId]?.hourly_rate ?? row.hourly_rate ?? '24') : row.hourly_rate);
+        return {
+          ...row,
+          ...patch,
+          role_id: nextRoleId,
+          hourly_rate: nextHourlyRate,
+        };
+      }),
+    );
+  };
+
+  const removeRoleDraft = (rowId: string) => {
+    setEmployeeRoleDrafts((current) => {
+      const remaining = current.filter((row) => row.id !== rowId);
+      if (remaining.length === 0) {
+        return [buildRoleRateDraft(roles[0]?.id || '', String(roles[0]?.hourly_rate || 24), true)];
+      }
+      if (!remaining.some((row) => row.primary_role)) {
+        remaining[0] = { ...remaining[0], primary_role: true };
+      }
+      return remaining;
+    });
+  };
+
+  const setPrimaryRoleDraft = (rowId: string) => {
+    setEmployeeRoleDrafts((current) =>
+      current.map((row) => ({
+        ...row,
+        primary_role: row.id === rowId,
+      })),
+    );
   };
 
   const upsertTeamMemberPermissions = async (
@@ -993,10 +1202,25 @@ const WorkforceManagement: React.FC = () => {
       alert('Employee name is required.');
       return;
     }
-    if (!employeeDraft.role_id) {
-      alert('Role is required.');
+    const normalizedRoleAssignments = employeeRoleDrafts
+      .map((row, index) => ({
+        role_id: String(row.role_id || '').trim(),
+        hourly_rate: Number(row.hourly_rate || 0),
+        primary_role: Boolean(row.primary_role) || index === 0,
+      }))
+      .filter((row) => row.role_id)
+      .filter((row, index, rows) => rows.findIndex((candidate) => candidate.role_id === row.role_id) === index);
+
+    if (normalizedRoleAssignments.length === 0) {
+      alert('At least one role is required.');
       return;
     }
+
+    const primaryRoleAssignment =
+      normalizedRoleAssignments.find((row) => row.primary_role) || normalizedRoleAssignments[0];
+    const primaryRoleId = primaryRoleAssignment.role_id;
+    const primaryRoleRate = Number(primaryRoleAssignment.hourly_rate || roleById[primaryRoleId]?.hourly_rate || 24);
+
     if (!employeeDraft.login_username.trim() && !employeeDraft.email.trim()) {
       alert('Login username is required so this employee can access BOH tools.');
       return;
@@ -1013,12 +1237,12 @@ const WorkforceManagement: React.FC = () => {
         user_id: userId || null,
         name: employeeDraft.name.trim(),
         email: employeeEmail || null,
-        title: employeeDraft.title.trim() || roleById[employeeDraft.role_id]?.name || 'Employee',
+        title: employeeDraft.title.trim() || roleById[primaryRoleId]?.name || 'Employee',
         status: active ? 'active' : 'inactive',
         default_location_id: 'wf_loc_main',
         hire_date: employeeDraft.hire_date,
         pay_basis: 'hourly',
-        hourly_rate: Number(employeeDraft.hourly_rate || roleById[employeeDraft.role_id]?.hourly_rate || 24),
+        hourly_rate: primaryRoleRate,
         availability: employeeDraft.availability.trim() || 'Open availability',
         login_username: loginUsername || null,
         login_password: employeeDraft.login_password.trim() || null,
@@ -1035,44 +1259,55 @@ const WorkforceManagement: React.FC = () => {
           .single();
         if (error) throw error;
         employeeId = String(employeeRow.id || '');
-
-        const { error: roleError } = await supabase.from('workforce_employee_roles').insert([
-          {
-            employee_id: employeeId,
-            role_id: employeeDraft.role_id,
-            primary_role: true,
-            active: true,
-          },
-        ]);
-        if (roleError) throw roleError;
       } else {
         const { error } = await supabase
           .from('workforce_employees')
           .update(employeePayload)
           .eq('id', employeeId);
         if (error) throw error;
+      }
 
-        const { data: existingRoleLinks } = await supabase
-          .from('workforce_employee_roles')
-          .select('*')
-          .eq('employee_id', employeeId);
-        if (Array.isArray(existingRoleLinks) && existingRoleLinks.length > 0) {
-          const { error: roleUpdateError } = await supabase
-            .from('workforce_employee_roles')
-            .update({ role_id: employeeDraft.role_id, active: true, primary_role: true })
-            .eq('employee_id', employeeId);
-          if (roleUpdateError) throw roleUpdateError;
-        } else {
-          const { error: roleInsertError } = await supabase.from('workforce_employee_roles').insert([
-            {
-              employee_id: employeeId,
-              role_id: employeeDraft.role_id,
-              primary_role: true,
-              active: true,
-            },
-          ]);
-          if (roleInsertError) throw roleInsertError;
-        }
+      const { error: clearRoleError } = await supabase
+        .from('workforce_employee_roles')
+        .delete()
+        .eq('employee_id', employeeId);
+      if (clearRoleError) throw clearRoleError;
+
+      const roleAssignmentRows = normalizedRoleAssignments.map((assignment, index) => ({
+        id: `wf_er_${employeeId}_${assignment.role_id}_${Date.now()}_${index}`,
+        employee_id: employeeId,
+        role_id: assignment.role_id,
+        hourly_rate: Number(assignment.hourly_rate || roleById[assignment.role_id]?.hourly_rate || 24),
+        primary_role: assignment.role_id === primaryRoleId,
+        active: true,
+      }));
+
+      const { error: roleInsertError } = await supabase
+        .from('workforce_employee_roles')
+        .insert(roleAssignmentRows);
+      if (roleInsertError) throw roleInsertError;
+
+      const { error: shiftRateUpdateError } = await supabase
+        .from('workforce_shifts')
+        .update({
+          wage_rate: primaryRoleRate,
+        })
+        .eq('employee_id', employeeId)
+        .eq('role_id', primaryRoleId);
+      if (shiftRateUpdateError) {
+        // Non-blocking: historical shifts can keep historical rates.
+      }
+
+      const { error: setPrimaryRoleShiftError } = await supabase
+        .from('workforce_shifts')
+        .update({
+          role_id: primaryRoleId,
+          wage_rate: primaryRoleRate,
+        })
+        .eq('employee_id', employeeId)
+        .is('role_id', null);
+      if (setPrimaryRoleShiftError) {
+        // Non-blocking fallback in case no null-role shifts exist.
       }
 
       const accrued = Number(employeeDraft.pto_accrued_hours || 0);
@@ -1111,7 +1346,7 @@ const WorkforceManagement: React.FC = () => {
           userId || '',
           employeeEmail,
           employeeDraft.name.trim(),
-          employeeDraft.title.trim() || roleById[employeeDraft.role_id]?.name || 'Employee',
+          employeeDraft.title.trim() || roleById[primaryRoleId]?.name || 'Employee',
           active,
         );
       }
@@ -1121,7 +1356,7 @@ const WorkforceManagement: React.FC = () => {
         'employee',
         employeeId,
         {
-          role_id: employeeDraft.role_id,
+          role_ids: normalizedRoleAssignments.map((assignment) => assignment.role_id),
         },
       );
 
@@ -1223,7 +1458,12 @@ const WorkforceManagement: React.FC = () => {
             start_time: startAt,
             end_time: endAt,
             break_rules: 'ca_standard',
-            wage_rate: Number(shiftDraft.wage_rate || roleById[shiftDraft.role_id]?.hourly_rate || 24),
+            wage_rate: Number(
+              shiftDraft.wage_rate ||
+                roleRateByEmployeeIdRoleId[shiftDraft.employee_id]?.[shiftDraft.role_id] ||
+                roleById[shiftDraft.role_id]?.hourly_rate ||
+                24,
+            ),
             status: 'draft',
           },
         ])
@@ -1892,6 +2132,9 @@ const WorkforceManagement: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-500 uppercase tracking-wide">Labor Cost (Live)</div>
             <div className="text-2xl font-display font-bold text-gray-900">${laborCost.toFixed(0)}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              CA OT {caLaborSummary.overtimeHours.toFixed(1)}h, DT {caLaborSummary.doubleTimeHours.toFixed(1)}h
+            </div>
           </div>
         </section>
 
@@ -1923,37 +2166,12 @@ const WorkforceManagement: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select
-                      value={employeeDraft.role_id}
-                      onChange={(event) => {
-                        const roleId = event.target.value;
-                        const role = roleById[roleId];
-                        setEmployeeDraft((current) => ({
-                          ...current,
-                          role_id: roleId,
-                          title: role?.name || current.title,
-                          hourly_rate: String(role?.hourly_rate || current.hourly_rate || '24'),
-                        }));
-                      }}
-                      className="w-full px-3 py-2 border rounded-lg"
-                    >
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate ($/hr)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Title</label>
                     <input
-                      type="number"
-                      min={0}
-                      step={0.25}
-                      value={employeeDraft.hourly_rate}
-                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, hourly_rate: event.target.value }))}
+                      value={employeeDraft.title}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, title: event.target.value }))}
                       className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="Manager, Bartender, Line Cook..."
                     />
                   </div>
                   <div>
@@ -1965,7 +2183,7 @@ const WorkforceManagement: React.FC = () => {
                       className="w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
                     <textarea
                       rows={2}
@@ -1974,6 +2192,84 @@ const WorkforceManagement: React.FC = () => {
                       className="w-full px-3 py-2 border rounded-lg"
                       placeholder="e.g. Mon-Fri PM, unavailable Sundays"
                     />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-900">Roles + Pay Rates</h4>
+                    <button
+                      type="button"
+                      onClick={addRoleDraftRow}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-ocean-200 text-ocean-700 rounded-md text-sm hover:bg-ocean-50"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Role
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {employeeRoleDrafts.map((roleRow, index) => (
+                      <div key={roleRow.id} className="grid md:grid-cols-12 gap-2 items-end border border-gray-100 rounded-lg p-2">
+                        <label className="md:col-span-2 inline-flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="primary-role"
+                            checked={Boolean(roleRow.primary_role)}
+                            onChange={() => setPrimaryRoleDraft(roleRow.id)}
+                          />
+                          Primary
+                        </label>
+
+                        <div className="md:col-span-5">
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Role</label>
+                          <select
+                            value={roleRow.role_id}
+                            onChange={(event) =>
+                              updateRoleDraft(roleRow.id, {
+                                role_id: event.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded-lg"
+                          >
+                            {roles.map((role) => (
+                              <option key={role.id} value={role.id}>
+                                {role.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-3">
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Rate ($/hr)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.25}
+                            value={roleRow.hourly_rate}
+                            onChange={(event) =>
+                              updateRoleDraft(roleRow.id, {
+                                hourly_rate: event.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => removeRoleDraft(roleRow.id)}
+                            disabled={employeeRoleDrafts.length <= 1}
+                            className="inline-flex items-center gap-1 px-2.5 py-2 border border-gray-200 rounded-md text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            title={index === 0 ? 'Keep at least one role' : 'Remove role'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -2288,13 +2584,14 @@ const WorkforceManagement: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {employees.map((employee) => {
-                  const roleId = workforceRoleIdByEmployee[employee.id];
-                  const roleName = roleById[roleId || '']?.name || employee.title || '-';
+                  const assignments = employeeRoleAssignmentsByEmployeeId[employee.id] || [];
+                  const primaryAssignment =
+                    assignments.find((assignment) => Boolean(assignment.primary_role)) || assignments[0];
+                  const roleName = roleById[primaryAssignment?.role_id || '']?.name || employee.title || '-';
                   return (
                     <tr key={employee.id}>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{employee.name}</div>
-                        <div className="text-sm text-gray-500">{employee.title || 'Team Member'}</div>
                       </td>
                       <td className="px-4 py-3 text-gray-900">{roleName}</td>
                       <td className="px-4 py-3 text-gray-900">{Math.round(Number(employee.attendance_score || 0))}%</td>
@@ -2428,7 +2725,27 @@ const WorkforceManagement: React.FC = () => {
             <form onSubmit={(event) => void createShift(event)} className="grid md:grid-cols-8 gap-3 bg-gray-50 p-4 rounded-lg">
               <select
                 value={shiftDraft.employee_id}
-                onChange={(event) => setShiftDraft((current) => ({ ...current, employee_id: event.target.value }))}
+                onChange={(event) => {
+                  const employeeId = event.target.value;
+                  const assignments = (employeeRoleAssignmentsByEmployeeId[employeeId] || []).filter(
+                    (assignment) => assignment.active !== false,
+                  );
+                  const primaryAssignment =
+                    assignments.find((assignment) => Boolean(assignment.primary_role)) || assignments[0];
+                  const nextRoleId = primaryAssignment?.role_id || shiftDraft.role_id;
+                  const nextRate =
+                    roleRateByEmployeeIdRoleId[employeeId]?.[nextRoleId] ||
+                    roleById[nextRoleId]?.hourly_rate ||
+                    shiftDraft.wage_rate ||
+                    24;
+
+                  setShiftDraft((current) => ({
+                    ...current,
+                    employee_id: employeeId,
+                    role_id: nextRoleId,
+                    wage_rate: String(nextRate),
+                  }));
+                }}
                 className="px-3 py-2 border rounded-lg"
               >
                 {employees.map((employee) => (
@@ -2444,12 +2761,17 @@ const WorkforceManagement: React.FC = () => {
                   setShiftDraft((current) => ({
                     ...current,
                     role_id: roleId,
-                    wage_rate: String(roleById[roleId]?.hourly_rate || current.wage_rate || ''),
+                    wage_rate: String(
+                      roleRateByEmployeeIdRoleId[current.employee_id]?.[roleId] ||
+                        roleById[roleId]?.hourly_rate ||
+                        current.wage_rate ||
+                        '',
+                    ),
                   }));
                 }}
                 className="px-3 py-2 border rounded-lg"
               >
-                {roles.map((role) => (
+                {rolesForSelectedShiftEmployee.map((role) => (
                   <option key={role.id} value={role.id}>
                     {role.name}
                   </option>

@@ -17,6 +17,8 @@ import {
   CalendarCheck2,
   CalendarRange,
   GraduationCap,
+  ChevronDown,
+  ChevronRight,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -47,7 +49,9 @@ interface NavItem {
 }
 
 interface NavSection {
+  id: string;
   heading?: string;
+  collapsible?: boolean;
   items: NavItem[];
 }
 
@@ -100,12 +104,42 @@ const INVESTMENT_ITEMS: NavItem[] = [
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [{ to: '/admin/settings', label: 'Settings', icon: Settings }];
+const NAV_STATE_COOKIE_PREFIX = 'spoonbill_nav_state_';
+
+const readSectionStateCookie = (cookieName: string): Record<string, boolean> => {
+  if (typeof document === 'undefined' || !cookieName) return {};
+  const row = document.cookie
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${cookieName}=`));
+  if (!row) return {};
+
+  const encodedValue = row.slice(cookieName.length + 1);
+  try {
+    const parsed = JSON.parse(decodeURIComponent(encodedValue));
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.entries(parsed).reduce((accumulator, [key, value]) => {
+      accumulator[key] = Boolean(value);
+      return accumulator;
+    }, {} as Record<string, boolean>);
+  } catch {
+    return {};
+  }
+};
+
+const writeSectionStateCookie = (cookieName: string, value: Record<string, boolean>) => {
+  if (typeof document === 'undefined' || !cookieName) return;
+  const encoded = encodeURIComponent(JSON.stringify(value));
+  document.cookie = `${cookieName}=${encoded}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+};
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, requiredCapability }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [authReady, setAuthReady] = useState(false);
   const [teamMemberName, setTeamMemberName] = useState('');
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [sectionCollapsed, setSectionCollapsed] = useState<Record<string, boolean>>({});
   const [capabilities, setCapabilities] = useState<PortalCapabilities>(EMPTY_CAPABILITIES);
 
   useEffect(() => {
@@ -144,6 +178,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
 
         if (!active) return;
 
+        setCurrentUserId(session.user.id);
         setCapabilities(nextCapabilities);
         setTeamMemberName(teamMember?.name || String(session.user.email || ''));
         setAuthReady(true);
@@ -163,12 +198,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
   const sections = useMemo(() => {
     const nextSections: NavSection[] = [
       {
+        id: 'dashboard',
         items: [{ to: '/admin', label: 'Dashboard', icon: Menu }],
       },
     ];
 
     if (canAccessSection(capabilities, 'menu_management')) {
-      nextSections.push({ heading: 'Menu Management', items: MENU_ITEMS });
+      nextSections.push({ id: 'menu_management', heading: 'Menu Management', collapsible: true, items: MENU_ITEMS });
     }
 
     if (canAccessSection(capabilities, 'operations')) {
@@ -176,32 +212,88 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
         item.capability ? canAccessCapability(capabilities, item.capability) : true,
       );
       if (allowedOperationItems.length > 0) {
-        nextSections.push({ heading: 'Operations', items: allowedOperationItems });
+        nextSections.push({
+          id: 'operations',
+          heading: 'Operations',
+          collapsible: true,
+          items: allowedOperationItems,
+        });
       }
     }
 
-    if (canAccessSection(capabilities, 'workforce')) {
-      nextSections.push({ heading: 'Workforce OS', items: WORKFORCE_ITEMS });
-    }
-
     if (canAccessSection(capabilities, 'content_management')) {
-      nextSections.push({ heading: 'Content Management', items: CONTENT_ITEMS });
+      nextSections.push({
+        id: 'content_management',
+        heading: 'Content Management',
+        collapsible: true,
+        items: CONTENT_ITEMS,
+      });
     }
 
     if (canAccessSection(capabilities, 'career_management')) {
-      nextSections.push({ heading: 'Career Management', items: CAREER_ITEMS });
+      nextSections.push({
+        id: 'career_management',
+        heading: 'Career Management',
+        collapsible: true,
+        items: CAREER_ITEMS,
+      });
     }
 
     if (canAccessSection(capabilities, 'investment')) {
-      nextSections.push({ heading: 'Investment', items: INVESTMENT_ITEMS });
+      nextSections.push({ id: 'investment', heading: 'Investment', collapsible: true, items: INVESTMENT_ITEMS });
+    }
+
+    if (canAccessSection(capabilities, 'workforce')) {
+      nextSections.push({ id: 'workforce', heading: 'Workforce OS', collapsible: true, items: WORKFORCE_ITEMS });
     }
 
     if (canAccessSection(capabilities, 'settings')) {
-      nextSections.push({ heading: 'Settings', items: SETTINGS_ITEMS });
+      nextSections.push({ id: 'settings', heading: 'Settings', collapsible: true, items: SETTINGS_ITEMS });
     }
 
     return nextSections;
   }, [capabilities]);
+
+  const navStateCookieName = useMemo(
+    () => (currentUserId ? `${NAV_STATE_COOKIE_PREFIX}${currentUserId}` : ''),
+    [currentUserId],
+  );
+
+  useEffect(() => {
+    if (!navStateCookieName) return;
+    const parsed = readSectionStateCookie(navStateCookieName);
+    setSectionCollapsed(parsed);
+  }, [navStateCookieName]);
+
+  useEffect(() => {
+    if (!navStateCookieName) return;
+    setSectionCollapsed((current) => {
+      const next = { ...current };
+      let changed = false;
+
+      sections.forEach((section) => {
+        if (!section.collapsible) {
+          if (next[section.id] !== false) {
+            next[section.id] = false;
+            changed = true;
+          }
+          return;
+        }
+
+        if (next[section.id] === undefined) {
+          next[section.id] = true;
+          changed = true;
+        }
+      });
+
+      return changed ? next : current;
+    });
+  }, [navStateCookieName, sections]);
+
+  useEffect(() => {
+    if (!navStateCookieName) return;
+    writeSectionStateCookie(navStateCookieName, sectionCollapsed);
+  }, [navStateCookieName, sectionCollapsed]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -210,6 +302,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
 
   const isActive = (path: string) =>
     location.pathname === path || (path !== '/admin' && location.pathname.startsWith(`${path}/`));
+
+  const toggleSection = (sectionId: string) => {
+    setSectionCollapsed((current) => ({
+      ...current,
+      [sectionId]: !current[sectionId],
+    }));
+  };
 
   if (!authReady) {
     return (
@@ -248,27 +347,38 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
       <div className="fixed left-0 top-16 h-full w-56 bg-white shadow-lg overflow-y-auto">
         <nav className="p-4 space-y-2">
           {sections.map((section) => (
-            <React.Fragment key={section.heading || section.items[0].to}>
+            <React.Fragment key={section.id}>
               {section.heading && (
-                <div className="py-2">
-                  <div className="px-4 text-xs font-medium text-gray-400 uppercase">{section.heading}</div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full px-4 py-2 text-xs font-medium text-gray-400 uppercase flex items-center justify-between hover:text-gray-500"
+                >
+                  <span>{section.heading}</span>
+                  {sectionCollapsed[section.id] ? (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
               )}
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                      isActive(item.to) ? 'bg-ocean-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 mr-3" />
-                    <span className="font-garamond">{item.label}</span>
-                  </Link>
-                );
-              })}
+
+              {(!section.collapsible || !sectionCollapsed[section.id]) &&
+                section.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                        isActive(item.to) ? 'bg-ocean-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mr-3" />
+                      <span className="font-garamond">{item.label}</span>
+                    </Link>
+                  );
+                })}
             </React.Fragment>
           ))}
         </nav>
