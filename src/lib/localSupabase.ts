@@ -799,6 +799,19 @@ const normalizeDrinkName = (value: string) => value.replace(/\s+/g, ' ').trim();
 const normalizeDrinkKey = (name: string, price: number | null | undefined) =>
   `${normalizeDrinkName(name).toLowerCase()}|${price ?? ''}`;
 
+const CODA_SIGNATURE_DRINKS = new Set([
+  'Aloha Spirit Mai Tai',
+  'Feathered Frenzy Zombie',
+  "Flamingo's Fancy Planter's Punch",
+]);
+
+const CODA_HAPPY_HOUR_DRINKS = new Set([
+  'Aloha Spirit Mai Tai',
+  'Chirping Chi Chi',
+  'Plumed Paradise Pina Colada',
+  'Sapphire Skies Blue Hawaii',
+]);
+
 const ensureCodaBeverageImport = (db: PlainObject) => {
   if (!Array.isArray(db.menu_categories) || !Array.isArray(db.menu_items)) {
     return false;
@@ -875,11 +888,29 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
     parent_id: cocktailsCategoryId,
     display_order: 1,
   });
+  const happyHourCategoryId = ensureCategory({
+    id: 'cat_happy_hour',
+    name: 'Happy Hour Specials',
+    parent_id: cocktailsCategoryId,
+    display_order: 2,
+  });
+  const flightsCategoryId = ensureCategory({
+    id: 'cat_flights',
+    name: 'Cocktail Flights',
+    parent_id: cocktailsCategoryId,
+    display_order: 3,
+  });
+  const classicsCategoryId = ensureCategory({
+    id: 'cat_classics',
+    name: 'Classic Cocktails',
+    parent_id: cocktailsCategoryId,
+    display_order: 4,
+  });
   const zeroProofCategoryId = ensureCategory({
     id: 'cat_zero_proof',
     name: 'Zero Proof',
     parent_id: cocktailsCategoryId,
-    display_order: 2,
+    display_order: 5,
   });
 
   const existingDrinkByKey = new Map<string, PlainObject>();
@@ -901,7 +932,19 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
     const ingredients = imported.ingredients
       .map((ingredient) => normalizeDrinkName(ingredient))
       .filter(Boolean);
-    const categoryId = imported.non_alcoholic ? zeroProofCategoryId : signatureCategoryId;
+    const isSignature = CODA_SIGNATURE_DRINKS.has(name);
+    const isHappyHour = CODA_HAPPY_HOUR_DRINKS.has(name);
+    const flightGroup = imported.flight ? normalizeDrinkName(imported.flight) : null;
+
+    const categoryId = imported.non_alcoholic
+      ? zeroProofCategoryId
+      : isHappyHour
+        ? happyHourCategoryId
+        : isSignature
+          ? signatureCategoryId
+          : flightGroup
+            ? flightsCategoryId
+            : classicsCategoryId;
     const itemKey = normalizeDrinkKey(name, price);
     const existing = existingDrinkByKey.get(itemKey);
 
@@ -921,6 +964,9 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
         alcohol_content: alcoholContent,
         garnish: null,
         category_id: categoryId,
+        coda_signature: isSignature,
+        coda_happy_hour: isHappyHour,
+        coda_flight_group: flightGroup,
         allergens: null,
         is_vegetarian: true,
         is_vegan: true,
@@ -957,6 +1003,9 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
     syncField('alcohol_content', alcoholContent);
     syncField('garnish', null);
     syncField('category_id', categoryId);
+    syncField('coda_signature', isSignature);
+    syncField('coda_happy_hour', isHappyHour);
+    syncField('coda_flight_group', flightGroup);
     syncField('allergens', existing.allergens ?? null);
     syncField('is_vegetarian', existing.is_vegetarian ?? true);
     syncField('is_vegan', existing.is_vegan ?? true);
