@@ -65,37 +65,37 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Coconut Shrimp with Mango-Habanero Sauce",
     "category_id": "cat_food_small_plates",
-    "price": null,
+    "price": 16,
     "description": "Succulent jumbo shrimp encrusted in a crispy coconut breading, golden-fried to perfection. Served with our signature mango-habanero sauce, offering a harmonious blend of tropical sweetness and subtle heat. This dish captures the essence of island flavors, providing a delightful contrast of textures and tastes."
   },
   {
     "name": "Seared Ahi Tuna Tacos",
     "category_id": "cat_food_small_plates",
-    "price": null,
+    "price": 18,
     "description": "Perfectly seared ahi in mini tortillas with mango salsa and avocado crema."
   },
   {
     "name": "Crab and Avocado Stack",
     "category_id": "cat_food_small_plates",
-    "price": null,
+    "price": 20,
     "description": "Layers of succulent crabmeat and creamy avocado with a citrus drizzle."
   },
   {
     "name": "Grilled Octopus with Papaya Salad",
     "category_id": "cat_food_small_plates",
-    "price": null,
+    "price": 22,
     "description": "Tender octopus char-grilled and served with a vibrant papaya salad."
   },
   {
     "name": "Grilled Mahi-Mahi Salad with Passion Fruit Vinaigrette (Sub Chicken, Pork Belly, Lamb or Tofu)",
     "category_id": "cat_food_small_plates",
-    "price": null,
+    "price": 24,
     "description": "Flaky grilled mahi-mahi atop mixed greens with a tangy passion fruit vinaigrette."
   },
   {
     "name": "Island Cobb Salad with Blackened Shrimp (Sub Chicken, Pork Belly, Lamb or Tofu)",
     "category_id": "cat_food_small_plates",
-    "price": null,
+    "price": 22,
     "description": "A tropical twist on the classic with blackened shrimp and island-inspired toppings."
   },
   {
@@ -119,25 +119,25 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Garlic Butter Shrimp Skewers",
     "category_id": "cat_food_main",
-    "price": null,
+    "price": 25,
     "description": "Grilled shrimp skewered and basted with garlic butter, accompanied by cream polenta and seasonal Vegetables"
   },
   {
     "name": "Whole Grilled Dungeness Crab",
     "category_id": "cat_food_main",
-    "price": null,
+    "price": 40,
     "description": "Grilled Dungeness crab with a lime-butter glaze, accompanied by garlic spinach and herb-roasted potatoes"
   },
   {
     "name": "Grilled Chicken with Mango Glaze",
     "category_id": "cat_food_main",
-    "price": null,
+    "price": 24,
     "description": "Chicken breast with a sweet mango glaze, alongside roasted sweet potatoes and sauteed kale"
   },
   {
     "name": "Spiced Pork Ribs with Guava BBQ Sauce",
     "category_id": "cat_food_main",
-    "price": null,
+    "price": 28,
     "description": "Tender ribs smothered in a guava BBQ sauce, with grilled plantains and a side of coconut-lime rice"
   },
   {
@@ -155,7 +155,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Creamy Coconut Polenta with Mushroom Ragout (Vegetarian)",
     "category_id": "cat_food_main",
-    "price": null,
+    "price": 20,
     "description": "Smooth polenta enriched with coconut cream, topped with a savory mushroom and vegetable ragout"
   },
   {
@@ -179,55 +179,55 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Caramelized Rum Cake",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 16,
     "description": "Moist cake soaked in buttery rum syrup, with a caramelized topping, capturing the essence of island rum"
   },
   {
     "name": "Chocolate Lava Cake with Papaya Coulis",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 18,
     "description": "Decadent lava cake with a molten center, paired with bright papaya coulis for a delightful contrast"
   },
   {
     "name": "Tropical Fruit Brulee",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 19,
     "description": "Creamy custard topped with chopped tropical fruits, caramelized to a crisp finish for a refreshing crunch"
   },
   {
     "name": "Passion Fruit Creme Brulee",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 14,
     "description": "Silky custard infused with tropical passion fruit, topped with caramelized sugar."
   },
   {
     "name": "Coconut Tres Leches Cake",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 14,
     "description": "Moist coconut cake soaked in three milks, topped with toasted coconut."
   },
   {
     "name": "Grilled Pineapple with Rum Caramel and Coconut Ice Cream",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 14,
     "description": "Caramelized pineapple with rum caramel sauce and coconut ice cream."
   },
   {
     "name": "Chocolate Lava Cake with Macadamia Nut Brittle",
     "category_id": "cat_food_dessert",
-    "price": null,
+    "price": 14,
     "description": "Decadent chocolate cake with a molten center, accompanied by macadamia nut brittle."
   },
   {
     "name": "Tropical Seafood Chowder",
     "category_id": "cat_food_salad_and_soup",
-    "price": null,
+    "price": 16,
     "description": "A medley of fresh seafood in a creamy coconut broth with island spices."
   },
   {
     "name": "Lobster Bisque with Coconut Foam",
     "category_id": "cat_food_salad_and_soup",
-    "price": null,
+    "price": 14,
     "description": "Velvety lobster soup crowned with a delicate coconut foam"
   },
   {
@@ -245,25 +245,25 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Caribbean Shrimp Bowl",
     "category_id": "cat_food_bowls",
-    "price": null,
+    "price": 23,
     "description": "Grilled shrimp atop coconut rice with black beans, pineapple salsa, and a touch of spicy jerk sauce"
   },
   {
     "name": "Crab-Stuffed Avocado Bowl",
     "category_id": "cat_food_bowls",
-    "price": null,
+    "price": 23,
     "description": "Half an avocado filled with creamy crab salad on mixed greens, topped with mango salsa"
   },
   {
     "name": "Chicken and Pineapple Bowl",
     "category_id": "cat_food_bowls",
-    "price": null,
+    "price": 20,
     "description": "Grilled chicken and sweet pineapple over coconut rice with tropical vegetables"
   },
   {
     "name": "Pork Loin Chop with Taro Puree",
     "category_id": "cat_food_bowls",
-    "price": null,
+    "price": 25,
     "description": "Grilled pork loin chop with a hint of island spices, served over a creamy taro root puree and garnished with a mango chutney"
   },
   {
@@ -275,25 +275,25 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Beef Short Rib Bowl with Coconut Rice",
     "category_id": "cat_food_bowls",
-    "price": null,
+    "price": 25,
     "description": null
   },
   {
     "name": "Tropical Stuffed Peppers (Vegetarian)",
     "category_id": "cat_food_bowls",
-    "price": null,
+    "price": 19,
     "description": "Bell peppers stuffed with quinoa, black beans, corn, and pineapple, topped with melted Monterey Jack cheese"
   },
   {
     "name": "Polynesian Crab Rangoon",
     "category_id": "cat_food_shareable",
-    "price": null,
+    "price": 40,
     "description": "A twist on the classic, filled with sweet crab and cream cheese, served with a pineapple sweet and sour sauce for dipping"
   },
   {
     "name": "Coconut Shrimp Platter",
     "category_id": "cat_food_shareable",
-    "price": null,
+    "price": 40,
     "description": "Crispy coconut-crusted shrimp, ready to be dipped in a tangy mango sauce perfect for a group indulgence"
   },
   {
@@ -347,25 +347,25 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Oyster Selection (with tropical mignonettes)",
     "category_id": "cat_food_raw_bar",
-    "price": null,
+    "price": 24,
     "description": "Fresh oysters served with an array of house-made tropical mignonettes."
   },
   {
     "name": "Tropical Ceviche Trio (shrimp, mahi-mahi, and octopus)",
     "category_id": "cat_food_raw_bar",
-    "price": null,
+    "price": 22,
     "description": "A refreshing medley of shrimp, mahi-mahi, and octopus \"cooked\" in citrus juices"
   },
   {
     "name": "Coconut-Lime Scallop Crudo",
     "category_id": "cat_food_raw_bar",
-    "price": null,
+    "price": 24,
     "description": "Fresh scallops thinly sliced and dressed with coconut milk, lime juice, and a touch of chili."
   },
   {
     "name": "Citrus-Cured Hamachi",
     "category_id": "cat_food_raw_bar",
-    "price": null,
+    "price": 18,
     "description": "Delicate slices of hamachi infused with bright citrus flavors."
   },
   {
@@ -377,31 +377,31 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Lobster Sashimi",
     "category_id": "cat_food_raw_bar",
-    "price": null,
+    "price": 38,
     "description": "Thinly sliced raw lobster tail served with a passion fruit ponzu sauce."
   },
   {
     "name": "Coconut Rice",
     "category_id": "cat_food_sides",
-    "price": null,
+    "price": 8,
     "description": null
   },
   {
     "name": "Grilled Plantains",
     "category_id": "cat_food_sides",
-    "price": null,
+    "price": 8,
     "description": null
   },
   {
     "name": "Tropical Vegetable Medley",
     "category_id": "cat_food_sides",
-    "price": null,
+    "price": 8,
     "description": null
   },
   {
     "name": "Sweet Potato Mash with Rum Butter",
     "category_id": "cat_food_sides",
-    "price": null,
+    "price": 8,
     "description": null
   },
   {
@@ -419,7 +419,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Pan-Seared Scallops with Mango-Lime Relish",
     "category_id": "cat_food_main_sea",
-    "price": null,
+    "price": 36,
     "description": "Plump scallops seared to perfection, topped with a bright mango-lime relish."
   },
   {
@@ -431,19 +431,19 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Jerk-Spiced Chicken Breast with Coconut Rice",
     "category_id": "cat_food_main_land",
-    "price": null,
+    "price": 28,
     "description": "Juicy chicken breast infused with Caribbean jerk spices, served over coconut rice."
   },
   {
     "name": "Guava-Glazed Pork Belly",
     "category_id": "cat_food_main_land",
-    "price": null,
+    "price": 32,
     "description": "Crispy pork belly glazed with sweet and tangy guava sauce."
   },
   {
     "name": "Grilled Lamb Chops with Pineapple-Mint Sauce",
     "category_id": "cat_food_main_land",
-    "price": null,
+    "price": 38,
     "description": "Tender lamb chops complemented by a refreshing pineapple-mint sauce."
   },
   {
@@ -473,7 +473,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Island Charcuterie and Tropical Cheese Board",
     "category_id": "cat_food_shareable_platters",
-    "price": null,
+    "price": 32,
     "description": "An array of cured meats, artisanal cheeses, and tropical fruits."
   },
   {
@@ -497,7 +497,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Chilled Lobster Martini",
     "category_id": "cat_food_appetizer",
-    "price": null,
+    "price": 25,
     "description": "Succulent lobster meat served chilled in a martini glass with avocado and mango relish."
   },
   {
@@ -515,13 +515,13 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Polynesian Pork Belly",
     "category_id": "cat_food_appetizer",
-    "price": null,
+    "price": 20,
     "description": "Crispy pork belly with a Polynesian-inspired glaze, served with a pineapple and papaya salsa"
   },
   {
     "name": "Caribbean Spiced Lamb Skewers",
     "category_id": "cat_food_appetizer",
-    "price": null,
+    "price": 18,
     "description": "Tender lamb skewers marinated in Caribbean spices, served with a cooling mango-yogurt dip for a light and flavorful start"
   },
   {
@@ -533,7 +533,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Tofu Poke Bowl (Vegan)",
     "category_id": "cat_food_appetizer",
-    "price": null,
+    "price": 18,
     "description": "Marinated tofu cubes with sushi rice, edamame, seaweed salad, and an avocado-wasabi spread"
   },
   {
@@ -551,7 +551,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Shrimp and Avocado Salad",
     "category_id": "cat_food_salads",
-    "price": null,
+    "price": 20,
     "description": "Grilled shrimp, avocado, mixed greens, and grapefruit segments in a citrus vinaigrette"
   },
   {
@@ -563,13 +563,13 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Tropical Chicken Salad",
     "category_id": "cat_food_salads",
-    "price": null,
+    "price": 18,
     "description": "Grilled chicken with mango and avocado on mixed greens, dressed in citrus honey, sprinkled with almonds"
   },
   {
     "name": "Luau-Style Pulled Pork Salad",
     "category_id": "cat_food_salads",
-    "price": null,
+    "price": 22,
     "description": "Slow-cooked pulled pork served over tropical greens with citrus notes and sweet potato crisps."
   },
   {
@@ -581,7 +581,7 @@ export const CODA_FOOD_ITEM_SEEDS = [
   {
     "name": "Island Vegetable Curry (Vegan)",
     "category_id": "cat_food_salads",
-    "price": null,
+    "price": 20,
     "description": "A rich blend of seasonal vegetables in a coconut curry sauce, served over jasmine rice with plantain chips"
   }
 ] as const;
