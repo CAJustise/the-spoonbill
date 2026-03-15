@@ -17,7 +17,6 @@ import {
   CalendarCheck2,
   CalendarRange,
   GraduationCap,
-  UserCog,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -82,7 +81,6 @@ const OPERATIONS_ITEMS: NavItem[] = [
 
 const WORKFORCE_ITEMS: NavItem[] = [
   { to: '/admin/workforce', label: 'Team + Labor', icon: Users },
-  { to: '/admin/workforce/team-access', label: 'Team Access', icon: UserCog },
 ];
 
 const CONTENT_ITEMS: NavItem[] = [

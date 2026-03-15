@@ -35,7 +35,6 @@ import Settings from './components/Admin/Settings';
 import BOHReservations from './components/Admin/BOHReservations';
 import BOHEventParties from './components/Admin/BOHEventParties';
 import BOHClasses from './components/Admin/BOHClasses';
-import TeamMembersAdmin from './components/Admin/TeamMembersAdmin';
 import WorkforceManagement from './components/Admin/WorkforceManagement';
 import type { ReservationIntent, ReservationPanelType } from './types/booking';
 
@@ -172,7 +171,6 @@ function App() {
           }
         />
         <Route path="/admin/workforce" element={<AdminLayout requiredSection="workforce"><WorkforceManagement /></AdminLayout>} />
-        <Route path="/admin/workforce/team-access" element={<AdminLayout requiredSection="workforce"><TeamMembersAdmin /></AdminLayout>} />
         
         {/* Career Management Routes */}
         <Route path="/admin/jobs" element={<AdminLayout requiredSection="career_management"><JobsAdmin /></AdminLayout>} />
@@ -183,7 +181,8 @@ function App() {
         {/* Investment Management Route */}
         <Route path="/admin/investor-submissions" element={<AdminLayout requiredSection="investment"><InvestorSubmissionsAdmin /></AdminLayout>} />
         
-        <Route path="/admin/team-members" element={<Navigate to="/admin/workforce/team-access" replace />} />
+        <Route path="/admin/team-members" element={<Navigate to="/admin/workforce" replace />} />
+        <Route path="/admin/workforce/team-access" element={<Navigate to="/admin/workforce" replace />} />
         <Route path="/admin/settings" element={<AdminLayout requiredSection="settings"><Settings /></AdminLayout>} />
         <Route path="/host/*" element={<Navigate to="/admin/login" replace />} />
         <Route path="/staff/*" element={<Navigate to="/admin/login" replace />} />

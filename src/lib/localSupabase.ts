@@ -47,6 +47,15 @@ const DEFAULT_SERVER_EMAIL = 'server@spoonbill.local';
 const DEFAULT_SERVER_PASSWORD = 'spoonbill-server';
 const TASTING_MENU_MIGRATION_FLAG = 'tastings_seed_20260315';
 
+const DEFAULT_PASSWORD_BY_EMAIL: Record<string, string> = {
+  [DEFAULT_ADMIN_EMAIL.toLowerCase()]: DEFAULT_ADMIN_PASSWORD,
+  [DEFAULT_HOST_EMAIL.toLowerCase()]: DEFAULT_HOST_PASSWORD,
+  [DEFAULT_HOST_LEAD_EMAIL.toLowerCase()]: DEFAULT_HOST_LEAD_PASSWORD,
+  [DEFAULT_LINE_COOK_EMAIL.toLowerCase()]: DEFAULT_LINE_COOK_PASSWORD,
+  [DEFAULT_BARTENDER_EMAIL.toLowerCase()]: DEFAULT_BARTENDER_PASSWORD,
+  [DEFAULT_SERVER_EMAIL.toLowerCase()]: DEFAULT_SERVER_PASSWORD,
+};
+
 const nowIso = () => new Date().toISOString();
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -1228,6 +1237,7 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
   const workforceEmployees = teamMembers.map((member) => {
     const roleId = workforceRoleForTitle(String(member.title || ''));
     const employeeId = `wf_emp_${String(member.id || createId('wf_emp')).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    const normalizedEmail = String(member.email || '').trim().toLowerCase();
     return {
       id: employeeId,
       user_id: String(member.user_id || ''),
@@ -1240,6 +1250,9 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
       pay_basis: 'hourly',
       hourly_rate: workforceRateForRole(roleId),
       training_state: 'active',
+      availability: 'Open availability',
+      login_username: String(member.email || ''),
+      login_password: DEFAULT_PASSWORD_BY_EMAIL[normalizedEmail] || '',
       attendance_score: 100,
       created_at: nowIso(),
     };
@@ -1404,6 +1417,7 @@ const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
       },
     ],
     workforce_pto_balances: ptoBalances,
+    workforce_employee_documents: [],
     workforce_tasks: [
       {
         id: 'wf_task_line_check',
@@ -3561,6 +3575,11 @@ const ensureWorkforceFoundation = (db: PlainObject, users: PlainObject[]) => {
         changed = true;
       }
 
+      if (!nextEmployee.availability) {
+        nextEmployee.availability = 'Open availability';
+        changed = true;
+      }
+
       if (nextEmployee.hourly_rate === undefined || nextEmployee.hourly_rate === null) {
         const roleId = workforceRoleForTitle(String(nextEmployee.title || ''));
         nextEmployee.hourly_rate = workforceRateForRole(roleId);
@@ -3574,6 +3593,20 @@ const ensureWorkforceFoundation = (db: PlainObject, users: PlainObject[]) => {
 
       if (nextEmployee.attendance_score === undefined || nextEmployee.attendance_score === null) {
         nextEmployee.attendance_score = 100;
+        changed = true;
+      }
+
+      if (!nextEmployee.login_username) {
+        const inferredUsername = String(linkedUser?.email || nextEmployee.email || '').trim();
+        if (inferredUsername) {
+          nextEmployee.login_username = inferredUsername;
+          changed = true;
+        }
+      }
+
+      if (nextEmployee.login_password === undefined || nextEmployee.login_password === null) {
+        const inferredPassword = String(linkedUser?.password || '');
+        nextEmployee.login_password = inferredPassword;
         changed = true;
       }
 
@@ -4215,6 +4248,64 @@ class LocalAuth {
           user: {
             id: user.id,
             email: user.email,
+          },
+        },
+        error: null,
+      };
+    },
+
+    updateUserById: async (
+      userId: string,
+      attributes: { email?: string; password?: string },
+    ) => {
+      const index = this.store.users.findIndex((candidate) => candidate.id === userId);
+      if (index < 0) {
+        return {
+          data: { user: null },
+          error: {
+            message: 'User not found',
+          },
+        };
+      }
+
+      const requestedEmail = String(attributes.email || '').trim();
+      if (requestedEmail) {
+        const duplicate = this.store.users.find(
+          (candidate, candidateIndex) =>
+            candidateIndex !== index &&
+            String(candidate.email || '').toLowerCase() === requestedEmail.toLowerCase(),
+        );
+
+        if (duplicate) {
+          return {
+            data: { user: null },
+            error: {
+              message: 'Email already in use',
+            },
+          };
+        }
+      }
+
+      const updated = {
+        ...this.store.users[index],
+        ...(requestedEmail ? { email: requestedEmail } : {}),
+        ...(attributes.password !== undefined ? { password: String(attributes.password) } : {}),
+        updated_at: nowIso(),
+      };
+
+      this.store.users[index] = updated;
+      this.store.saveUsers();
+
+      if (this.store.session?.user?.id === userId) {
+        this.store.session = toSessionPayload(updated);
+        this.store.saveSession();
+      }
+
+      return {
+        data: {
+          user: {
+            id: updated.id,
+            email: updated.email,
           },
         },
         error: null,

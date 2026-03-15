@@ -143,7 +143,7 @@ const LoginPage: React.FC = () => {
           </form>
           <div className="mt-6 border-t border-gray-100 pt-4 text-center">
             <p className="text-sm text-gray-600">
-              Access is managed in Workforce OS {'>'} Team Access.
+              Access is managed in Workforce OS {'>'} Team.
             </p>
           </div>
         </div>

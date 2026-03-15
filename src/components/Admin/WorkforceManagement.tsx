@@ -7,13 +7,17 @@ import {
   ChevronRight,
   Clock3,
   Copy,
+  Edit2,
+  FileText,
   NotebookPen,
   Plus,
   Save,
   Trash2,
+  Upload,
+  X,
   Users,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, supabaseAdmin } from '../../lib/supabase';
 
 interface WorkforceEmployee {
   id: string;
@@ -23,9 +27,46 @@ interface WorkforceEmployee {
   title?: string;
   status: 'active' | 'inactive' | string;
   default_location_id: string;
+  hire_date?: string;
   pay_basis?: string;
   hourly_rate?: number;
+  availability?: string;
+  login_username?: string;
+  login_password?: string;
   attendance_score?: number;
+}
+
+interface TeamMemberPermissions {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string;
+  title: string;
+  portal?: string;
+  can_view_reservations: boolean;
+  can_view_events_parties: boolean;
+  can_view_classes: boolean;
+  can_access_menu_management: boolean;
+  can_access_operations: boolean;
+  can_access_workforce: boolean;
+  can_access_content_management: boolean;
+  can_access_career_management: boolean;
+  can_access_investment: boolean;
+  can_access_settings: boolean;
+  operations_classes_read_only: boolean;
+  active: boolean;
+}
+
+interface WorkforceEmployeeDocument {
+  id: string;
+  employee_id: string;
+  doc_type: string;
+  file_name: string;
+  file_path: string;
+  public_url: string;
+  notes?: string;
+  uploaded_at?: string;
+  created_at?: string;
 }
 
 interface WorkforceRole {
@@ -235,6 +276,33 @@ const formatDateHeader = (value: Date) =>
     day: 'numeric',
   });
 
+const buildEmployeeDraft = (roleId = '', hourlyRate = '24') => ({
+  name: '',
+  email: '',
+  title: '',
+  role_id: roleId,
+  hourly_rate: hourlyRate,
+  hire_date: new Date().toISOString().slice(0, 10),
+  availability: 'Open availability',
+  login_username: '',
+  login_password: '',
+  pto_accrued_hours: '80',
+  pto_used_hours: '0',
+  pto_available_hours: '80',
+  can_access_menu_management: false,
+  can_access_operations: true,
+  can_access_workforce: true,
+  can_access_content_management: false,
+  can_access_career_management: false,
+  can_access_investment: false,
+  can_access_settings: false,
+  can_view_reservations: false,
+  can_view_events_parties: false,
+  can_view_classes: false,
+  operations_classes_read_only: false,
+  active: true,
+});
+
 const WorkforceManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -248,6 +316,8 @@ const WorkforceManagement: React.FC = () => {
   const [tasks, setTasks] = useState<WorkforceTask[]>([]);
   const [logEntries, setLogEntries] = useState<WorkforceLogEntry[]>([]);
   const [events, setEvents] = useState<WorkforceEvent[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberPermissions[]>([]);
+  const [employeeDocuments, setEmployeeDocuments] = useState<WorkforceEmployeeDocument[]>([]);
   const [scheduleTemplates, setScheduleTemplates] = useState<WorkforceScheduleTemplate[]>([]);
   const [scheduleTemplateShifts, setScheduleTemplateShifts] = useState<WorkforceScheduleTemplateShift[]>([]);
   const [timeOffRequests, setTimeOffRequests] = useState<WorkforceTimeOffRequest[]>([]);
@@ -258,6 +328,9 @@ const WorkforceManagement: React.FC = () => {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showLogForm, setShowLogForm] = useState(false);
   const [showTimeOffForm, setShowTimeOffForm] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<WorkforceEmployee | null>(null);
+  const [employeeEditorMode, setEmployeeEditorMode] = useState<'create' | 'edit'>('edit');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   const [actorUserId, setActorUserId] = useState('system');
   const [actorName, setActorName] = useState('Manager');
@@ -266,12 +339,11 @@ const WorkforceManagement: React.FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [draggingShiftId, setDraggingShiftId] = useState<string | null>(null);
 
-  const [employeeDraft, setEmployeeDraft] = useState({
-    name: '',
-    email: '',
-    title: '',
-    role_id: '',
-    hourly_rate: '24',
+  const [employeeDraft, setEmployeeDraft] = useState(() => buildEmployeeDraft());
+
+  const [documentDraft, setDocumentDraft] = useState({
+    doc_type: 'ID Scan',
+    notes: '',
   });
 
   const [shiftDraft, setShiftDraft] = useState({
@@ -319,6 +391,8 @@ const WorkforceManagement: React.FC = () => {
       tasksRes,
       logsRes,
       eventsRes,
+      teamMembersRes,
+      employeeDocumentsRes,
       scheduleTemplatesRes,
       scheduleTemplateShiftsRes,
       timeOffRequestsRes,
@@ -333,6 +407,8 @@ const WorkforceManagement: React.FC = () => {
       supabase.from('workforce_tasks').select('*').order('due_time'),
       supabase.from('workforce_log_entries').select('*').order('timestamp'),
       supabase.from('workforce_events').select('*').order('timestamp', { ascending: false }),
+      supabase.from('team_members').select('*').order('name'),
+      supabase.from('workforce_employee_documents').select('*').order('uploaded_at', { ascending: false }),
       supabase.from('workforce_schedule_templates').select('*').order('name'),
       supabase.from('workforce_schedule_template_shifts').select('*').order('day_offset'),
       supabase.from('workforce_time_off_requests').select('*').order('start_date'),
@@ -349,6 +425,8 @@ const WorkforceManagement: React.FC = () => {
       tasksRes.error,
       logsRes.error,
       eventsRes.error,
+      teamMembersRes.error,
+      employeeDocumentsRes.error,
       scheduleTemplatesRes.error,
       scheduleTemplateShiftsRes.error,
       timeOffRequestsRes.error,
@@ -368,6 +446,8 @@ const WorkforceManagement: React.FC = () => {
     setTasks((tasksRes.data as WorkforceTask[]) || []);
     setLogEntries((logsRes.data as WorkforceLogEntry[]) || []);
     setEvents((eventsRes.data as WorkforceEvent[]) || []);
+    setTeamMembers((teamMembersRes.data as TeamMemberPermissions[]) || []);
+    setEmployeeDocuments((employeeDocumentsRes.data as WorkforceEmployeeDocument[]) || []);
     setScheduleTemplates((scheduleTemplatesRes.data as WorkforceScheduleTemplate[]) || []);
     setScheduleTemplateShifts((scheduleTemplateShiftsRes.data as WorkforceScheduleTemplateShift[]) || []);
     setTimeOffRequests((timeOffRequestsRes.data as WorkforceTimeOffRequest[]) || []);
@@ -484,6 +564,27 @@ const WorkforceManagement: React.FC = () => {
         return accumulator;
       }, {} as Record<string, WorkforceStation>),
     [stations],
+  );
+
+  const teamMemberByUserId = useMemo(
+    () =>
+      teamMembers.reduce((accumulator, member) => {
+        if (!member.user_id) return accumulator;
+        accumulator[member.user_id] = member;
+        return accumulator;
+      }, {} as Record<string, TeamMemberPermissions>),
+    [teamMembers],
+  );
+
+  const workforceRoleIdByEmployee = useMemo(
+    () =>
+      shifts.reduce((accumulator, shift) => {
+        if (!accumulator[shift.employee_id]) {
+          accumulator[shift.employee_id] = shift.role_id;
+        }
+        return accumulator;
+      }, {} as Record<string, string>),
+    [shifts],
   );
 
   const ptoByEmployeeId = useMemo(
@@ -716,55 +817,384 @@ const WorkforceManagement: React.FC = () => {
     }
   };
 
-  const createEmployee = async (event: React.FormEvent<HTMLFormElement>) => {
+  const openCreateEmployeeEditor = () => {
+    const defaultRole = roles[0];
+    setEmployeeEditorMode('create');
+    setEditingEmployee(null);
+    setEmployeeDraft(
+      buildEmployeeDraft(defaultRole?.id || '', String(defaultRole?.hourly_rate || 24)),
+    );
+    setDocumentDraft({ doc_type: 'ID Scan', notes: '' });
+    setShowEmployeeForm(true);
+  };
+
+  const openEditEmployeeEditor = (employee: WorkforceEmployee) => {
+    const primaryRoleId = workforceRoleIdByEmployee[employee.id] || roles[0]?.id || '';
+    const teamMember = teamMemberByUserId[String(employee.user_id || '')];
+    const pto = ptoByEmployeeId[employee.id];
+
+    setEmployeeEditorMode('edit');
+    setEditingEmployee(employee);
+    setEmployeeDraft({
+      name: employee.name || '',
+      email: String(employee.email || ''),
+      title: String(employee.title || roleById[primaryRoleId]?.name || ''),
+      role_id: primaryRoleId,
+      hourly_rate: String(employee.hourly_rate || roleById[primaryRoleId]?.hourly_rate || 24),
+      hire_date: String(employee.hire_date || new Date().toISOString().slice(0, 10)),
+      availability: String(employee.availability || 'Open availability'),
+      login_username: String(employee.login_username || employee.email || ''),
+      login_password: String(employee.login_password || ''),
+      pto_accrued_hours: String(pto?.accrued_hours ?? 80),
+      pto_used_hours: String(pto?.used_hours ?? 0),
+      pto_available_hours: String(pto?.available_hours ?? 80),
+      can_access_menu_management: Boolean(teamMember?.can_access_menu_management),
+      can_access_operations:
+        teamMember?.can_access_operations !== undefined
+          ? Boolean(teamMember.can_access_operations)
+          : true,
+      can_access_workforce:
+        teamMember?.can_access_workforce !== undefined
+          ? Boolean(teamMember.can_access_workforce)
+          : true,
+      can_access_content_management: Boolean(teamMember?.can_access_content_management),
+      can_access_career_management: Boolean(teamMember?.can_access_career_management),
+      can_access_investment: Boolean(teamMember?.can_access_investment),
+      can_access_settings: Boolean(teamMember?.can_access_settings),
+      can_view_reservations: Boolean(teamMember?.can_view_reservations),
+      can_view_events_parties: Boolean(teamMember?.can_view_events_parties),
+      can_view_classes: Boolean(teamMember?.can_view_classes),
+      operations_classes_read_only: Boolean(teamMember?.operations_classes_read_only),
+      active: employee.status !== 'inactive',
+    });
+    setDocumentDraft({ doc_type: 'ID Scan', notes: '' });
+    setShowEmployeeForm(true);
+  };
+
+  const closeEmployeeEditor = () => {
+    setShowEmployeeForm(false);
+    setEditingEmployee(null);
+  };
+
+  const upsertTeamMemberPermissions = async (
+    userId: string,
+    email: string,
+    name: string,
+    title: string,
+    active: boolean,
+  ) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = teamMembers.find(
+      (member) =>
+        (userId && member.user_id === userId) ||
+        (normalizedEmail && String(member.email || '').trim().toLowerCase() === normalizedEmail),
+    );
+
+    const canAccessOperations = Boolean(employeeDraft.can_access_operations);
+    const canViewClasses = canAccessOperations && Boolean(employeeDraft.can_view_classes);
+
+    const payload = {
+      user_id: userId,
+      email,
+      name,
+      title,
+      portal: existing?.portal || 'staff',
+      can_access_menu_management: Boolean(employeeDraft.can_access_menu_management),
+      can_access_operations: canAccessOperations,
+      can_access_workforce: Boolean(employeeDraft.can_access_workforce),
+      can_access_content_management: Boolean(employeeDraft.can_access_content_management),
+      can_access_career_management: Boolean(employeeDraft.can_access_career_management),
+      can_access_investment: Boolean(employeeDraft.can_access_investment),
+      can_access_settings: Boolean(employeeDraft.can_access_settings),
+      can_view_reservations: canAccessOperations && Boolean(employeeDraft.can_view_reservations),
+      can_view_events_parties: canAccessOperations && Boolean(employeeDraft.can_view_events_parties),
+      can_view_classes: canViewClasses,
+      operations_classes_read_only:
+        canViewClasses && Boolean(employeeDraft.operations_classes_read_only),
+      active,
+    };
+
+    if (existing?.id) {
+      const { error } = await supabase.from('team_members').update(payload).eq('id', existing.id);
+      if (error) throw error;
+      return;
+    }
+
+    const { error } = await supabase.from('team_members').insert([
+      {
+        id: `tm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        ...payload,
+      },
+    ]);
+    if (error) throw error;
+  };
+
+  const ensureUserLogin = async (fallbackEmail: string) => {
+    const loginUsername = employeeDraft.login_username.trim() || fallbackEmail.trim();
+    const loginPassword = employeeDraft.login_password.trim();
+    let nextUserId = String(editingEmployee?.user_id || '').trim();
+
+    if (!loginUsername) {
+      return {
+        userId: nextUserId,
+        loginUsername: '',
+      };
+    }
+
+    const adminApi = (supabaseAdmin as any)?.auth?.admin;
+    if (!adminApi) {
+      return {
+        userId: nextUserId,
+        loginUsername,
+      };
+    }
+
+    if (!nextUserId && typeof adminApi.createUser === 'function') {
+      const { data, error } = await adminApi.createUser({
+        email: loginUsername,
+        password: loginPassword || 'spoonbill-temp',
+      });
+
+      if (error) {
+        const existingTeam = teamMembers.find(
+          (member) =>
+            String(member.email || '').trim().toLowerCase() === loginUsername.trim().toLowerCase(),
+        );
+        if (existingTeam?.user_id) {
+          nextUserId = existingTeam.user_id;
+        } else {
+          throw error;
+        }
+      } else if (data?.user?.id) {
+        nextUserId = String(data.user.id);
+      }
+    }
+
+    if (nextUserId && typeof adminApi.updateUserById === 'function') {
+      const updatePayload: Record<string, string> = {};
+      if (loginUsername) updatePayload.email = loginUsername;
+      if (loginPassword) updatePayload.password = loginPassword;
+
+      if (Object.keys(updatePayload).length > 0) {
+        const { error } = await adminApi.updateUserById(nextUserId, updatePayload);
+        if (error) throw error;
+      }
+    }
+
+    return {
+      userId: nextUserId,
+      loginUsername,
+    };
+  };
+
+  const saveEmployeeProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!employeeDraft.name.trim()) {
       alert('Employee name is required.');
       return;
     }
+    if (!employeeDraft.role_id) {
+      alert('Role is required.');
+      return;
+    }
+    if (!employeeDraft.login_username.trim() && !employeeDraft.email.trim()) {
+      alert('Login username is required so this employee can access BOH tools.');
+      return;
+    }
 
     setSaving(true);
     try {
-      const { data: employeeRows, error: employeeError } = await supabase
-        .from('workforce_employees')
-        .insert([
+      const normalizedEmail = employeeDraft.email.trim();
+      const { userId, loginUsername } = await ensureUserLogin(normalizedEmail);
+      const employeeEmail = normalizedEmail || loginUsername;
+      const active = Boolean(employeeDraft.active);
+
+      const employeePayload = {
+        user_id: userId || null,
+        name: employeeDraft.name.trim(),
+        email: employeeEmail || null,
+        title: employeeDraft.title.trim() || roleById[employeeDraft.role_id]?.name || 'Employee',
+        status: active ? 'active' : 'inactive',
+        default_location_id: 'wf_loc_main',
+        hire_date: employeeDraft.hire_date,
+        pay_basis: 'hourly',
+        hourly_rate: Number(employeeDraft.hourly_rate || roleById[employeeDraft.role_id]?.hourly_rate || 24),
+        availability: employeeDraft.availability.trim() || 'Open availability',
+        login_username: loginUsername || null,
+        login_password: employeeDraft.login_password.trim() || null,
+        attendance_score: editingEmployee?.attendance_score ?? 100,
+      };
+
+      let employeeId = editingEmployee?.id || '';
+
+      if (employeeEditorMode === 'create') {
+        const { data: employeeRow, error } = await supabase
+          .from('workforce_employees')
+          .insert([employeePayload])
+          .select('*')
+          .single();
+        if (error) throw error;
+        employeeId = String(employeeRow.id || '');
+
+        const { error: roleError } = await supabase.from('workforce_employee_roles').insert([
           {
-            name: employeeDraft.name.trim(),
-            email: employeeDraft.email.trim(),
-            title: employeeDraft.title.trim() || roleById[employeeDraft.role_id]?.name || 'Employee',
-            status: 'active',
-            default_location_id: 'wf_loc_main',
-            pay_basis: 'hourly',
-            hourly_rate: Number(employeeDraft.hourly_rate || roleById[employeeDraft.role_id]?.hourly_rate || 24),
-            attendance_score: 100,
+            employee_id: employeeId,
+            role_id: employeeDraft.role_id,
+            primary_role: true,
+            active: true,
           },
-        ])
-        .select('*')
-        .single();
+        ]);
+        if (roleError) throw roleError;
+      } else {
+        const { error } = await supabase
+          .from('workforce_employees')
+          .update(employeePayload)
+          .eq('id', employeeId);
+        if (error) throw error;
 
-      if (employeeError) throw employeeError;
-      if (!employeeRows?.id) throw new Error('Employee was created without an id.');
+        const { data: existingRoleLinks } = await supabase
+          .from('workforce_employee_roles')
+          .select('*')
+          .eq('employee_id', employeeId);
+        if (Array.isArray(existingRoleLinks) && existingRoleLinks.length > 0) {
+          const { error: roleUpdateError } = await supabase
+            .from('workforce_employee_roles')
+            .update({ role_id: employeeDraft.role_id, active: true, primary_role: true })
+            .eq('employee_id', employeeId);
+          if (roleUpdateError) throw roleUpdateError;
+        } else {
+          const { error: roleInsertError } = await supabase.from('workforce_employee_roles').insert([
+            {
+              employee_id: employeeId,
+              role_id: employeeDraft.role_id,
+              primary_role: true,
+              active: true,
+            },
+          ]);
+          if (roleInsertError) throw roleInsertError;
+        }
+      }
 
-      const { error: roleError } = await supabase.from('workforce_employee_roles').insert([
+      const accrued = Number(employeeDraft.pto_accrued_hours || 0);
+      const used = Number(employeeDraft.pto_used_hours || 0);
+      const available = Number(employeeDraft.pto_available_hours || Math.max(0, accrued - used));
+      const existingPto = ptoByEmployeeId[employeeId];
+
+      if (existingPto?.id) {
+        const { error: ptoError } = await supabase
+          .from('workforce_pto_balances')
+          .update({
+            accrued_hours: accrued,
+            used_hours: used,
+            available_hours: available,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingPto.id);
+        if (ptoError) throw ptoError;
+      } else {
+        const { error: ptoInsertError } = await supabase
+          .from('workforce_pto_balances')
+          .insert([
+            {
+              employee_id: employeeId,
+              accrued_hours: accrued,
+              used_hours: used,
+              available_hours: available,
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+        if (ptoInsertError) throw ptoInsertError;
+      }
+
+      if (userId || employeeEmail) {
+        await upsertTeamMemberPermissions(
+          userId || '',
+          employeeEmail,
+          employeeDraft.name.trim(),
+          employeeDraft.title.trim() || roleById[employeeDraft.role_id]?.name || 'Employee',
+          active,
+        );
+      }
+
+      await recordEvent(
+        employeeEditorMode === 'create' ? 'EMPLOYEE_CREATED' : 'EMPLOYEE_UPDATED',
+        'employee',
+        employeeId,
         {
-          employee_id: String(employeeRows.id),
           role_id: employeeDraft.role_id,
-          primary_role: true,
-          active: true,
+        },
+      );
+
+      await fetchAll();
+      closeEmployeeEditor();
+    } catch (error) {
+      alert(`Failed to save employee profile: ${(error as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploadEmployeeDocument = async (file: File) => {
+    if (!editingEmployee?.id) return;
+    setUploadingDocument(true);
+    try {
+      const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const filePath = `${editingEmployee.id}/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('employee-documents')
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('employee-documents').getPublicUrl(filePath);
+
+      const { error: insertError } = await supabase.from('workforce_employee_documents').insert([
+        {
+          employee_id: editingEmployee.id,
+          doc_type: documentDraft.doc_type.trim() || 'Document',
+          file_name: file.name,
+          file_path: filePath,
+          public_url: publicUrl,
+          notes: documentDraft.notes.trim(),
+          uploaded_at: new Date().toISOString(),
         },
       ]);
+      if (insertError) throw insertError;
 
-      if (roleError) throw roleError;
-
-      await recordEvent('EMPLOYEE_CREATED', 'employee', String(employeeRows.id), {
-        role_id: employeeDraft.role_id,
+      await recordEvent('EMPLOYEE_DOCUMENT_UPLOADED', 'employee', editingEmployee.id, {
+        file_name: file.name,
+        doc_type: documentDraft.doc_type.trim() || 'Document',
       });
 
       await fetchAll();
-      setShowEmployeeForm(false);
-      setEmployeeDraft({ name: '', email: '', title: '', role_id: employeeDraft.role_id, hourly_rate: '24' });
+      setDocumentDraft((current) => ({ ...current, notes: '' }));
     } catch (error) {
-      alert(`Failed to create employee: ${(error as Error).message}`);
+      alert(`Failed to upload document: ${(error as Error).message}`);
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const deleteEmployeeDocument = async (document: WorkforceEmployeeDocument) => {
+    if (!confirm('Delete this employee document?')) return;
+
+    setSaving(true);
+    try {
+      await supabase.storage.from('employee-documents').remove([document.file_path]);
+      const { error } = await supabase
+        .from('workforce_employee_documents')
+        .delete()
+        .eq('id', document.id);
+      if (error) throw error;
+
+      await recordEvent('EMPLOYEE_DOCUMENT_DELETED', 'employee', document.employee_id, {
+        file_name: document.file_name,
+      });
+      await fetchAll();
+    } catch (error) {
+      alert(`Failed to delete document: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -1206,6 +1636,14 @@ const WorkforceManagement: React.FC = () => {
     return shifts.filter((shift) => formatDateKey(new Date(shift.start_time)) === currentDateKey);
   }, [scheduleDateKeys, scheduleView, shifts]);
 
+  const editingEmployeeDocuments = useMemo(
+    () =>
+      editingEmployee
+        ? employeeDocuments.filter((document) => document.employee_id === editingEmployee.id)
+        : [],
+    [editingEmployee, employeeDocuments],
+  );
+
   const publishTodaySchedule = async () => {
     setSaving(true);
     try {
@@ -1457,12 +1895,380 @@ const WorkforceManagement: React.FC = () => {
           </div>
         </section>
 
+        {showEmployeeForm && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-5xl bg-white rounded-xl shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h3 className="text-xl font-display font-bold text-gray-900">
+                  {employeeEditorMode === 'create' ? 'Add Employee' : 'Edit Employee'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeEmployeeEditor}
+                  className="p-2 text-gray-500 hover:text-gray-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={(event) => void saveEmployeeProfile(event)} className="p-6 space-y-6 max-h-[78vh] overflow-y-auto">
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Team Member Name</label>
+                    <input
+                      value={employeeDraft.name}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, name: event.target.value }))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select
+                      value={employeeDraft.role_id}
+                      onChange={(event) => {
+                        const roleId = event.target.value;
+                        const role = roleById[roleId];
+                        setEmployeeDraft((current) => ({
+                          ...current,
+                          role_id: roleId,
+                          title: role?.name || current.title,
+                          hourly_rate: String(role?.hourly_rate || current.hourly_rate || '24'),
+                        }));
+                      }}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate ($/hr)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.25}
+                      value={employeeDraft.hourly_rate}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, hourly_rate: event.target.value }))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={employeeDraft.hire_date}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, hire_date: event.target.value }))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
+                    <textarea
+                      rows={2}
+                      value={employeeDraft.availability}
+                      onChange={(event) => setEmployeeDraft((current) => ({ ...current, availability: event.target.value }))}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g. Mon-Fri PM, unavailable Sundays"
+                    />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-gray-900">Login Credentials</h4>
+                  <div className="grid md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Login Username</label>
+                      <input
+                        type="email"
+                        value={employeeDraft.login_username}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, login_username: event.target.value, email: event.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="employee@spoonbill.local"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <input
+                        type="text"
+                        value={employeeDraft.login_password}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, login_password: event.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder={employeeEditorMode === 'edit' ? 'Leave as-is or enter new password' : 'Required for new login'}
+                      />
+                    </div>
+                    <label className="inline-flex items-end gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.active}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, active: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Active
+                    </label>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-gray-900">PTO Balance</h4>
+                  <div className="grid md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Accrued Hours</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.25}
+                        value={employeeDraft.pto_accrued_hours}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, pto_accrued_hours: event.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Used Hours</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.25}
+                        value={employeeDraft.pto_used_hours}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, pto_used_hours: event.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Available Hours</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.25}
+                        value={employeeDraft.pto_available_hours}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, pto_available_hours: event.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-gray-900">Access Levels</h4>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-700">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_menu_management}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_menu_management: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Menu Management
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_operations}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_operations: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Operations
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_workforce}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_workforce: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Workforce
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_content_management}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_content_management: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Content Management
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_career_management}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_career_management: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Career Management
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_investment}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_investment: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Investment
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employeeDraft.can_access_settings}
+                        onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_access_settings: event.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      Settings
+                    </label>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Operations Access</p>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-700">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={employeeDraft.can_view_reservations}
+                          onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_view_reservations: event.target.checked }))}
+                          className="rounded border-gray-300"
+                        />
+                        Reservations
+                      </label>
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={employeeDraft.can_view_events_parties}
+                          onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_view_events_parties: event.target.checked }))}
+                          className="rounded border-gray-300"
+                        />
+                        Event / Parties
+                      </label>
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={employeeDraft.can_view_classes}
+                          onChange={(event) => setEmployeeDraft((current) => ({ ...current, can_view_classes: event.target.checked }))}
+                          className="rounded border-gray-300"
+                        />
+                        Classes
+                      </label>
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={employeeDraft.operations_classes_read_only}
+                          onChange={(event) => setEmployeeDraft((current) => ({ ...current, operations_classes_read_only: event.target.checked }))}
+                          className="rounded border-gray-300"
+                        />
+                        Classes Read-Only
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-gray-900">Employee Files</h4>
+                  {editingEmployee ? (
+                    <>
+                      <div className="grid md:grid-cols-3 gap-3">
+                        <select
+                          value={documentDraft.doc_type}
+                          onChange={(event) => setDocumentDraft((current) => ({ ...current, doc_type: event.target.value }))}
+                          className="px-3 py-2 border rounded-lg"
+                        >
+                          <option value="ID Scan">ID Scan</option>
+                          <option value="Food Handlers Card">Food Handlers Card</option>
+                          <option value="Write Up">Write Up</option>
+                          <option value="Annual Review">Annual Review</option>
+                          <option value="Certification">Certification</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <input
+                          value={documentDraft.notes}
+                          onChange={(event) => setDocumentDraft((current) => ({ ...current, notes: event.target.value }))}
+                          className="px-3 py-2 border rounded-lg md:col-span-2"
+                          placeholder="Optional notes"
+                        />
+                      </div>
+                      <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer w-fit">
+                        <Upload className="h-4 w-4" />
+                        Upload Document
+                        <input
+                          type="file"
+                          className="hidden"
+                          disabled={uploadingDocument}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (!file) return;
+                            void uploadEmployeeDocument(file);
+                            event.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <div className="space-y-2">
+                        {editingEmployeeDocuments.map((document) => (
+                          <div key={document.id} className="flex items-center justify-between gap-3 border border-gray-100 rounded-lg p-2">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{document.file_name}</div>
+                              <div className="text-xs text-gray-500">{document.doc_type} • {formatDateTime(document.uploaded_at || document.created_at)}</div>
+                              {document.notes && <div className="text-xs text-gray-500">{document.notes}</div>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={document.public_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 border rounded-md text-gray-700 hover:bg-gray-50"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                View
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => void deleteEmployeeDocument(document)}
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 border rounded-md text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {!editingEmployeeDocuments.length && (
+                          <div className="text-sm text-gray-500">No files uploaded yet.</div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      Save the employee first, then upload ID scans, food handler cards, write-ups, and annual reviews.
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeEmployeeEditor}
+                    className="px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
+                  >
+                    {employeeEditorMode === 'create' ? 'Create Employee' : 'Save Employee'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         <section className="bg-white rounded-lg shadow p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-display font-bold text-gray-900">Team</h2>
             <button
               type="button"
-              onClick={() => setShowEmployeeForm((current) => !current)}
+              onClick={openCreateEmployeeEditor}
               className="inline-flex items-center gap-2 px-3 py-2 border border-ocean-200 text-ocean-700 rounded-lg hover:bg-ocean-50"
             >
               <Plus className="h-4 w-4" />
@@ -1470,88 +2276,37 @@ const WorkforceManagement: React.FC = () => {
             </button>
           </div>
 
-          {showEmployeeForm && (
-            <form onSubmit={(event) => void createEmployee(event)} className="grid md:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-lg">
-              <input
-                value={employeeDraft.name}
-                onChange={(event) => setEmployeeDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Employee name"
-                className="px-3 py-2 border rounded-lg"
-                required
-              />
-              <input
-                value={employeeDraft.email}
-                onChange={(event) => setEmployeeDraft((current) => ({ ...current, email: event.target.value }))}
-                placeholder="Email"
-                className="px-3 py-2 border rounded-lg"
-              />
-              <select
-                value={employeeDraft.role_id}
-                onChange={(event) => {
-                  const roleId = event.target.value;
-                  const role = roleById[roleId];
-                  setEmployeeDraft((current) => ({
-                    ...current,
-                    role_id: roleId,
-                    title: role?.name || current.title,
-                    hourly_rate: String(role?.hourly_rate || current.hourly_rate || '24'),
-                  }));
-                }}
-                className="px-3 py-2 border rounded-lg"
-              >
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={1}
-                value={employeeDraft.hourly_rate}
-                onChange={(event) =>
-                  setEmployeeDraft((current) => ({ ...current, hourly_rate: event.target.value }))
-                }
-                placeholder="Hourly rate"
-                className="px-3 py-2 border rounded-lg"
-              />
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
-              >
-                Save Employee
-              </button>
-            </form>
-          )}
-
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rate</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Attendance</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {employees.map((employee) => {
-                  const currentShift = shiftsToday.find((shift) => shift.employee_id === employee.id);
+                  const roleId = workforceRoleIdByEmployee[employee.id];
+                  const roleName = roleById[roleId || '']?.name || employee.title || '-';
                   return (
                     <tr key={employee.id}>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{employee.name}</div>
-                        <div className="text-sm text-gray-500">{employee.email || '-'}</div>
+                        <div className="text-sm text-gray-500">{employee.title || 'Team Member'}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-900">{currentShift ? roleById[currentShift.role_id]?.name : employee.title || '-'}</td>
-                      <td className="px-4 py-3 text-gray-900">${Number(employee.hourly_rate || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-gray-900">{roleName}</td>
                       <td className="px-4 py-3 text-gray-900">{Math.round(Number(employee.attendance_score || 0))}%</td>
-                      <td className="px-4 py-3">
-                        <span className={employee.status === 'active' ? 'text-green-600' : 'text-gray-500'}>
-                          {employee.status || 'active'}
-                        </span>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditEmployeeEditor(employee)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   );
