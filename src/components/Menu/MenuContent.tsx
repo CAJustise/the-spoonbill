@@ -58,6 +58,8 @@ const CATEGORY_NAV_LABELS: Record<string, string> = {
   'Happy Hour': 'Happy Hour',
   'Cocktail Flights': 'Flights',
   'Flights': 'Flights',
+  'Cocktail Bowls': 'Bowls',
+  'Bowls': 'Bowls',
   'Classic Cocktails': 'Classic',
   'Classic': 'Classic',
   'Zero Proof': 'Zero Proof',
@@ -70,6 +72,8 @@ const CATEGORY_PILL_LABELS: Record<string, string> = {
   'Happy Hour': 'Happy Hour',
   'Cocktail Flights': 'Flights',
   'Flights': 'Flights',
+  'Cocktail Bowls': 'Bowls',
+  'Bowls': 'Bowls',
   'Classic Cocktails': 'Classic',
   'Classic': 'Classic',
   'Zero Proof': 'Zero Proof',
@@ -86,6 +90,24 @@ const MenuContent: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const findCategoryById = (list: Category[], categoryId: string): Category | null => {
+    for (const category of list) {
+      if (category.id === categoryId) return category;
+      if (category.subcategories?.length) {
+        const match = findCategoryById(category.subcategories, categoryId);
+        if (match) return match;
+      }
+    }
+    return null;
+  };
+
+  const isSpiritsTabRoot = (category: Category | null) => {
+    if (!category) return false;
+    if (category.id === 'cat_spirits' || category.id === 'cat_beer_wine') return true;
+    const normalized = category.name.toLowerCase();
+    return normalized.includes('spirit') || normalized.includes('beer') || normalized.includes('wine');
+  };
 
   const shouldShowAlcoholContent = (category: Category | null) => {
     if (!category) return true;
@@ -200,9 +222,9 @@ const MenuContent: React.FC = () => {
   const getRootCategory = (categoryId: string | null) => {
     if (!categoryId) return null;
 
-    let current = categories.find((category) => category.id === categoryId) || null;
+    let current = findCategoryById(categories, categoryId);
     while (current?.parent_id) {
-      current = categories.find((category) => category.id === current?.parent_id) || null;
+      current = findCategoryById(categories, current.parent_id);
     }
 
     return current;
@@ -210,12 +232,12 @@ const MenuContent: React.FC = () => {
 
   const isSpiritCategory = (item: MenuItem) => {
     const root = getRootCategory(item.category_id);
-    return root?.name.toLowerCase().includes('spirit');
+    return isSpiritsTabRoot(root);
   };
 
   const isSpiritRootCategory = (category: Category) => {
     const root = getRootCategory(category.id) || category;
-    return root.name.toLowerCase().includes('spirit');
+    return isSpiritsTabRoot(root);
   };
 
   const filteredItems = menuItems.filter((item) => {
@@ -261,13 +283,25 @@ const MenuContent: React.FC = () => {
   };
 
   const isWineItem = (item: MenuItem) => {
+    const rootCategory = getRootCategory(item.category_id);
+    const rootName = rootCategory?.name.toLowerCase() || '';
+    const isBeerWineRoot =
+      rootCategory?.id === 'cat_beer_wine' || rootName.includes('beer') || rootName.includes('wine');
+    if (!isBeerWineRoot) return false;
+
     // Check if the item is in a wine category or subcategory
-    let currentCat = item.category;
+    let currentCat = item.category_id ? findCategoryById(categories, item.category_id) : null;
     while (currentCat) {
-      if (currentCat.name === 'Wine') {
+      const normalized = currentCat.name.toLowerCase();
+      if (
+        normalized.includes('wine') ||
+        normalized === 'champagne' ||
+        normalized.includes('sparkling') ||
+        normalized.includes('rose')
+      ) {
         return true;
       }
-      currentCat = categories.find(cat => cat.id === currentCat?.parent_id) || null;
+      currentCat = currentCat.parent_id ? findCategoryById(categories, currentCat.parent_id) : null;
     }
     return false;
   };

@@ -845,6 +845,263 @@ const CODA_ZERO_PROOF_ADDITIONS = [
   },
 ] as const;
 
+const SPIRITS_SUBCATEGORY_SEEDS = [
+  { id: 'cat_rum_light_white', name: 'Light & White Rums' },
+  { id: 'cat_rum_dark', name: 'Dark Rums' },
+  { id: 'cat_rum_gold', name: 'Gold Rums' },
+  { id: 'cat_rum_overproof', name: 'Overproof Rums' },
+  { id: 'cat_rum_premium_aged', name: 'Premium Aged Rums' },
+  { id: 'cat_rum_agricole', name: 'Agricole Rums' },
+  { id: 'cat_rum_spiced', name: 'Spiced Rums' },
+  { id: 'cat_rum_specialty', name: 'Unique and Specialty Rums' },
+  { id: 'cat_rum_flavored', name: 'Flavored Rums' },
+  { id: 'cat_vodkas', name: 'Vodkas' },
+  { id: 'cat_sherry', name: 'Sherry' },
+  { id: 'cat_brandy', name: 'Brandy' },
+  { id: 'cat_apricot_brandy', name: 'Apricot Brandy' },
+  { id: 'cat_cherry_brandy', name: 'Cherry Brandy' },
+  { id: 'cat_tequila_blanco', name: 'Tequila (Blanco/Silver)' },
+  { id: 'cat_tequila_anejo', name: 'Anejo Tequila' },
+  { id: 'cat_tequila_reposado', name: 'Reposado Tequila' },
+  { id: 'cat_bourbon', name: 'Bourbon' },
+  { id: 'cat_whiskey', name: 'Whiskey' },
+  { id: 'cat_gin', name: 'Gin' },
+  { id: 'cat_gin_international_craft', name: 'International and Craft Gins' },
+  { id: 'cat_gin_american', name: 'American Gins' },
+  { id: 'cat_gin_new_western', name: 'New Western (Modern) Gin' },
+  { id: 'cat_gin_old_tom', name: 'Old Tom Gin' },
+  { id: 'cat_gin_navy_strength', name: 'Navy Strength Gin' },
+  { id: 'cat_gin_sloe', name: 'Sloe Gin' },
+  { id: 'cat_grenadine', name: 'Grenadine' },
+  { id: 'cat_mezcal', name: 'Mezcal' },
+  { id: 'cat_pisco', name: 'Pisco' },
+  { id: 'cat_sake_soju', name: 'Sake and Soju' },
+  { id: 'cat_vermouth', name: 'Vermouth (Dry and Sweet)' },
+  { id: 'cat_campari_aperol', name: 'Campari and Aperol' },
+  { id: 'cat_amaretto', name: 'Amaretto' },
+  { id: 'cat_triple_sec', name: 'Triple Sec' },
+  { id: 'cat_falernum', name: 'Falernum' },
+  { id: 'cat_aquavit', name: 'Aquavit' },
+  { id: 'cat_chartreuse', name: 'Chartreuse' },
+  { id: 'cat_maraschino_liqueur', name: 'Maraschino Liqueur' },
+  { id: 'cat_rhum_clement', name: 'Rhum Clement' },
+  { id: 'cat_port_wine', name: 'Port Wine' },
+  { id: 'cat_curacao', name: 'Blue Curacao and Orange Curacao' },
+  { id: 'cat_benedictine', name: 'Benedictine' },
+  { id: 'cat_absinthe', name: 'Absinthe' },
+  { id: 'cat_cointreau', name: 'Cointreau' },
+  { id: 'cat_coffee_liqueur', name: 'Coffee Liqueur' },
+  { id: 'cat_blackberry_liqueur', name: 'Blackberry Liqueur' },
+  { id: 'cat_banana_liqueur', name: 'Banana Liqueur' },
+] as const;
+
+const BEER_WINE_SUBCATEGORY_SEEDS = [
+  { id: 'cat_craft_beer', name: 'Craft Beer' },
+  { id: 'cat_white_wines', name: 'White Wines' },
+  { id: 'cat_red_wines', name: 'Red Wines' },
+  { id: 'cat_rose_wines', name: 'Rose Wines' },
+  { id: 'cat_sparkling_wines', name: 'Sparkling Wines' },
+  { id: 'cat_champagne', name: 'Champagne' },
+] as const;
+
+const SPIRITS_ITEM_SEEDS = [
+  { name: 'Bacardi Superior', category_id: 'cat_rum_light_white' },
+  { name: 'Havana Club 3 Year Old', category_id: 'cat_rum_light_white' },
+  { name: 'Plantation 3 Stars', category_id: 'cat_rum_light_white' },
+  { name: 'Rhum J.M Blanc', category_id: 'cat_rum_light_white' },
+  { name: "Myers's Original Dark", category_id: 'cat_rum_dark' },
+  { name: "Gosling's Black Seal", category_id: 'cat_rum_dark' },
+  { name: "Pusser's British Navy Rum", category_id: 'cat_rum_dark' },
+  { name: 'Appleton Estate Reserve Blend', category_id: 'cat_rum_gold' },
+  { name: 'Mount Gay Eclipse', category_id: 'cat_rum_gold' },
+  { name: 'El Dorado 5-Year-Old', category_id: 'cat_rum_gold' },
+  { name: 'Wray & Nephew Overproof', category_id: 'cat_rum_overproof' },
+  { name: 'Plantation OFTD', category_id: 'cat_rum_overproof' },
+  { name: 'Lemon Hart 151', category_id: 'cat_rum_overproof' },
+  { name: 'Ron Zacapa 23 Solera', category_id: 'cat_rum_premium_aged' },
+  { name: 'El Dorado 15-Year-Old', category_id: 'cat_rum_premium_aged' },
+  { name: 'Appleton Estate 21-Year-Old', category_id: 'cat_rum_premium_aged' },
+  { name: 'Rhum Clement VSOP', category_id: 'cat_rum_agricole' },
+  { name: 'Rhum Barbancourt 5 Star', category_id: 'cat_rum_agricole' },
+  { name: 'Sailor Jerry Spiced Rum', category_id: 'cat_rum_spiced' },
+  { name: 'Kraken Black Spiced Rum', category_id: 'cat_rum_spiced' },
+  { name: 'Diplomatico Reserva Exclusiva', category_id: 'cat_rum_specialty' },
+  { name: "St. Lucia Distillers Chairman's Reserve", category_id: 'cat_rum_specialty' },
+  { name: 'Rhum J.M XO', category_id: 'cat_rum_specialty' },
+  { name: 'Malibu Coconut Rum', category_id: 'cat_rum_flavored' },
+  { name: 'Bacardi Limon', category_id: 'cat_rum_flavored' },
+  { name: 'Belvedere', category_id: 'cat_vodkas' },
+  { name: 'Grey Goose', category_id: 'cat_vodkas' },
+  { name: 'Ketel One', category_id: 'cat_vodkas' },
+  { name: 'Stolichnaya Elit', category_id: 'cat_vodkas' },
+  { name: 'Absolut Elyx', category_id: 'cat_vodkas' },
+  { name: 'Chopin', category_id: 'cat_vodkas' },
+  { name: 'Ciroc', category_id: 'cat_vodkas' },
+  { name: 'Russian Standard Gold', category_id: 'cat_vodkas' },
+  { name: "Tito's Handmade Vodka", category_id: 'cat_vodkas' },
+  { name: 'Reyka', category_id: 'cat_vodkas' },
+  { name: 'Crystal Head', category_id: 'cat_vodkas' },
+  { name: 'Van Gogh Vodka', category_id: 'cat_vodkas' },
+  { name: 'Purity Vodka', category_id: 'cat_vodkas' },
+  { name: 'Zubrowka Bison Grass Vodka', category_id: 'cat_vodkas' },
+  { name: 'Beluga Noble Russian Vodka', category_id: 'cat_vodkas' },
+  { name: 'Fino', category_id: 'cat_sherry' },
+  { name: 'Manzanilla', category_id: 'cat_sherry' },
+  { name: 'Amontillado', category_id: 'cat_sherry' },
+  { name: 'Oloroso', category_id: 'cat_sherry' },
+  { name: 'Palo Cortado', category_id: 'cat_sherry' },
+  { name: 'Pedro Ximenez (PX)', category_id: 'cat_sherry' },
+  { name: 'Cream Sherry', category_id: 'cat_sherry' },
+  { name: 'Moscatel', category_id: 'cat_sherry' },
+  { name: 'Hennessy V.S.O.P Privilege', category_id: 'cat_brandy' },
+  { name: 'Remy Martin VSOP', category_id: 'cat_brandy' },
+  { name: 'Courvoisier VSOP', category_id: 'cat_brandy' },
+  { name: 'Torres 10 Gran Reserva', category_id: 'cat_brandy' },
+  { name: 'St-Remy VSOP', category_id: 'cat_brandy' },
+  { name: 'Armagnac Castarede VSOP', category_id: 'cat_brandy' },
+  { name: 'Paul Masson VSOP', category_id: 'cat_brandy' },
+  { name: "Laird's Straight Apple Brandy", category_id: 'cat_brandy' },
+  { name: 'Maraska Apricot Brandy', category_id: 'cat_apricot_brandy' },
+  { name: "Rothman & Winter Orchard Apricot Liqueur", category_id: 'cat_apricot_brandy' },
+  { name: "Briottet Creme d'Abricot (Apricot Cream)", category_id: 'cat_apricot_brandy' },
+  { name: 'Giffard Abricot du Roussillon', category_id: 'cat_apricot_brandy' },
+  { name: 'Cherry Heering', category_id: 'cat_cherry_brandy' },
+  { name: 'Kirsch de Cuisine', category_id: 'cat_cherry_brandy' },
+  { name: 'Leroux Cherry Brandy', category_id: 'cat_cherry_brandy' },
+  { name: 'Massenez Kirsch Vieux', category_id: 'cat_cherry_brandy' },
+  { name: 'Patron Silver', category_id: 'cat_tequila_blanco' },
+  { name: 'Don Julio Blanco', category_id: 'cat_tequila_blanco' },
+  { name: 'Herradura Silver', category_id: 'cat_tequila_blanco' },
+  { name: 'Espolon Blanco', category_id: 'cat_tequila_blanco' },
+  { name: 'Don Julio Anejo', category_id: 'cat_tequila_anejo' },
+  { name: 'Patron Anejo', category_id: 'cat_tequila_anejo' },
+  { name: 'Herradura Anejo', category_id: 'cat_tequila_anejo' },
+  { name: 'Casa Noble Anejo', category_id: 'cat_tequila_anejo' },
+  { name: 'Casamigos Reposado', category_id: 'cat_tequila_reposado' },
+  { name: 'El Jimador Reposado', category_id: 'cat_tequila_reposado' },
+  { name: 'Milagro Reposado', category_id: 'cat_tequila_reposado' },
+  { name: '1800 Reposado', category_id: 'cat_tequila_reposado' },
+  { name: 'Woodford Reserve', category_id: 'cat_bourbon' },
+  { name: 'Buffalo Trace', category_id: 'cat_bourbon' },
+  { name: "Maker's Mark", category_id: 'cat_bourbon' },
+  { name: 'Bulleit Bourbon', category_id: 'cat_bourbon' },
+  { name: "Jameson Irish Whiskey", category_id: 'cat_whiskey' },
+  { name: 'Glenfiddich 12 Year Single Malt Scotch', category_id: 'cat_whiskey' },
+  { name: 'Lagavulin 16 Year Old', category_id: 'cat_whiskey' },
+  { name: "Jack Daniel's Tennessee Whiskey", category_id: 'cat_whiskey' },
+  { name: 'Balvenie DoubleWood 12 Year Old', category_id: 'cat_whiskey' },
+  { name: 'Ardbeg 10 Year Old', category_id: 'cat_whiskey' },
+  { name: 'London Dry Gin', category_id: 'cat_gin' },
+  { name: 'Tanqueray No. Ten', category_id: 'cat_gin' },
+  { name: 'Beefeater London Dry', category_id: 'cat_gin' },
+  { name: 'Sipsmith London Dry', category_id: 'cat_gin' },
+  { name: "Hendrick's Gin (Scotland)", category_id: 'cat_gin_international_craft' },
+  { name: 'Monkey 47 (Germany)', category_id: 'cat_gin_international_craft' },
+  { name: 'The Botanist (Scotland)', category_id: 'cat_gin_international_craft' },
+  { name: 'St. George Terroir Gin', category_id: 'cat_gin_american' },
+  { name: 'Brooklyn Gin', category_id: 'cat_gin_american' },
+  { name: 'Bluecoat American Dry Gin', category_id: 'cat_gin_american' },
+  { name: 'Aviation American Gin', category_id: 'cat_gin_new_western' },
+  { name: 'Roku Japanese Craft Gin', category_id: 'cat_gin_new_western' },
+  { name: "G'Vine Floraison (France)", category_id: 'cat_gin_new_western' },
+  { name: "Hayman's Old Tom Gin", category_id: 'cat_gin_old_tom' },
+  { name: 'Ransom Old Tom Gin', category_id: 'cat_gin_old_tom' },
+  { name: 'Plymouth Navy Strength', category_id: 'cat_gin_navy_strength' },
+  { name: "Leopold's Navy Strength American Gin", category_id: 'cat_gin_navy_strength' },
+  { name: 'Plymouth Sloe Gin', category_id: 'cat_gin_sloe' },
+  { name: 'Sipsmith Sloe Gin', category_id: 'cat_gin_sloe' },
+  { name: 'Monin Grenadine Syrup', category_id: 'cat_grenadine' },
+  { name: 'Small Hand Foods Grenadine', category_id: 'cat_grenadine' },
+  { name: 'Homemade Grenadine', category_id: 'cat_grenadine' },
+  { name: 'Del Maguey Vida', category_id: 'cat_mezcal' },
+  { name: 'Monte Alban Mezcal', category_id: 'cat_mezcal' },
+  { name: 'El Jolgorio', category_id: 'cat_mezcal' },
+  { name: 'Pisco Porton', category_id: 'cat_pisco' },
+  { name: 'Barsol Pisco', category_id: 'cat_pisco' },
+  { name: 'La Caravedo Puro Quebranta', category_id: 'cat_pisco' },
+  { name: 'Junmai and Ginjo Sake', category_id: 'cat_sake_soju' },
+  { name: 'Chamisul Soju', category_id: 'cat_sake_soju' },
+  { name: 'Yamamoto Pure Black Soju', category_id: 'cat_sake_soju' },
+  { name: 'Dolin Vermouth', category_id: 'cat_vermouth' },
+  { name: 'Carpano Antica Formula', category_id: 'cat_vermouth' },
+  { name: 'Noilly Prat Dry Vermouth', category_id: 'cat_vermouth' },
+  { name: 'Select', category_id: 'cat_campari_aperol' },
+  { name: 'Cynar', category_id: 'cat_campari_aperol' },
+  { name: 'Disaronno', category_id: 'cat_amaretto' },
+  { name: 'Lazzaroni Amaretto', category_id: 'cat_amaretto' },
+  { name: 'Luxardo Triplum', category_id: 'cat_triple_sec' },
+  { name: 'Cointreau', category_id: 'cat_triple_sec' },
+  { name: "John D. Taylor's Velvet Falernum", category_id: 'cat_falernum' },
+  { name: "BG Reynolds' Falernum", category_id: 'cat_falernum' },
+  { name: 'Linie Aquavit', category_id: 'cat_aquavit' },
+  { name: 'Krogstad Festlig Aquavit', category_id: 'cat_aquavit' },
+  { name: 'Green Chartreuse', category_id: 'cat_chartreuse' },
+  { name: 'Yellow Chartreuse', category_id: 'cat_chartreuse' },
+  { name: 'Luxardo Maraschino', category_id: 'cat_maraschino_liqueur' },
+  { name: 'Maraska Maraschino', category_id: 'cat_maraschino_liqueur' },
+  { name: 'Rhum Clement V.S.O.P.', category_id: 'cat_rhum_clement' },
+  { name: 'Rhum J.', category_id: 'cat_rhum_clement' },
+  { name: 'Taylor Fladgate', category_id: 'cat_port_wine' },
+  { name: "Graham's", category_id: 'cat_port_wine' },
+  { name: 'Senior & Co. Genuine Blue Curacao', category_id: 'cat_curacao' },
+  { name: 'Bols Blue Curacao', category_id: 'cat_curacao' },
+  { name: 'Pierre Ferrand Dry Curacao', category_id: 'cat_curacao' },
+  { name: 'B&B (Benedictine & Brandy)', category_id: 'cat_benedictine' },
+  { name: 'Benedictine Single Cask', category_id: 'cat_benedictine' },
+  { name: 'Pernod Absinthe', category_id: 'cat_absinthe' },
+  { name: 'St. George Absinthe Verte', category_id: 'cat_absinthe' },
+  { name: 'La Fee Absinthe Parisienne', category_id: 'cat_absinthe' },
+  { name: 'Cointreau Noir', category_id: 'cat_cointreau' },
+  { name: 'Grand Marnier', category_id: 'cat_cointreau' },
+  { name: 'Kahlua', category_id: 'cat_coffee_liqueur' },
+  { name: 'Patron XO Cafe', category_id: 'cat_coffee_liqueur' },
+  { name: 'Tia Maria', category_id: 'cat_coffee_liqueur' },
+  { name: 'Chambord', category_id: 'cat_blackberry_liqueur' },
+  { name: 'Leopold Bros. Blackberry Liqueur', category_id: 'cat_blackberry_liqueur' },
+  { name: 'Creme de Mure', category_id: 'cat_blackberry_liqueur' },
+  { name: 'Giffard Banane du Bresil', category_id: 'cat_banana_liqueur' },
+  { name: '99 Bananas', category_id: 'cat_banana_liqueur' },
+  { name: 'Tempus Fugit Spirits Creme de Banane', category_id: 'cat_banana_liqueur' },
+] as const;
+
+const BEER_WINE_ITEM_SEEDS = [
+  { name: 'Kiwi-Strawberry (Jiant Hard Tea)', category_id: 'cat_craft_beer' },
+  { name: 'Super Bad Apple (2 Towns Ciderhouse)', category_id: 'cat_craft_beer' },
+  { name: 'Ube Mango Cheesecake (Kings / XUL)', category_id: 'cat_craft_beer' },
+  { name: 'Toast Points (Highland Park / Moonlight)', category_id: 'cat_craft_beer' },
+  { name: 'The Lightest One (Enegren Brewing)', category_id: 'cat_craft_beer' },
+  { name: 'Del Valle (San Fernando Brewing)', category_id: 'cat_craft_beer' },
+  { name: 'Hop Merchants Lager (Lawless Brewing)', category_id: 'cat_craft_beer' },
+  { name: 'Tangible Passion (Riip Beer Co.)', category_id: 'cat_craft_beer' },
+  { name: 'Vacant For Winter (Pizza Port Brewing)', category_id: 'cat_craft_beer' },
+  { name: 'Super Cali (Riip Beer Co.)', category_id: 'cat_craft_beer' },
+  { name: 'Sauvignon Blanc - Cloudy Bay (New Zealand)', category_id: 'cat_white_wines' },
+  { name: 'Chardonnay - Cakebread Cellars (Napa Valley, USA)', category_id: 'cat_white_wines' },
+  { name: 'Riesling - Dr. Loosen Blue Slate (Germany)', category_id: 'cat_white_wines' },
+  { name: 'Pinot Grigio - Santa Margherita (Italy)', category_id: 'cat_white_wines' },
+  { name: 'Viognier - Yalumba Y Series (Australia)', category_id: 'cat_white_wines' },
+  { name: 'Pinot Noir - Domaine Serene Yamhill Cuvee (Oregon, USA)', category_id: 'cat_red_wines' },
+  { name: 'Cabernet Sauvignon - Silver Oak (Alexander Valley, USA)', category_id: 'cat_red_wines' },
+  { name: 'Merlot - Duckhorn Vineyards (Napa Valley, USA)', category_id: 'cat_red_wines' },
+  { name: "Syrah - Penfolds Max's (Australia)", category_id: 'cat_red_wines' },
+  { name: 'Malbec - Catena Zapata (Argentina)', category_id: 'cat_red_wines' },
+  { name: 'Whispering Angel Rose (France)', category_id: 'cat_rose_wines' },
+  { name: 'Rock Angel Rose (France)', category_id: 'cat_rose_wines' },
+  { name: 'Miraval Rose (France)', category_id: 'cat_rose_wines' },
+  { name: 'Minuty M Rose (France)', category_id: 'cat_rose_wines' },
+  { name: 'Sacha Lichine Single Blend Rose (France)', category_id: 'cat_rose_wines' },
+  { name: 'Prosecco - La Marca (Italy)', category_id: 'cat_sparkling_wines' },
+  { name: 'Cava - Segura Viudas Brut Reserva (Spain)', category_id: 'cat_sparkling_wines' },
+  { name: 'Franciacorta - Bellavista Alma Gran Cuvee (Italy)', category_id: 'cat_sparkling_wines' },
+  { name: 'American Sparkling - Domaine Chandon Brut (California, USA)', category_id: 'cat_sparkling_wines' },
+  { name: 'Sparkling Rose - Schramsberg Mirabelle Brut Rose (California, USA)', category_id: 'cat_sparkling_wines' },
+  { name: 'Veuve Clicquot Brut Yellow Label', category_id: 'cat_champagne' },
+  { name: 'Moet & Chandon Imperial', category_id: 'cat_champagne' },
+  { name: 'Bollinger Special Cuvee', category_id: 'cat_champagne' },
+  { name: 'Dom Perignon', category_id: 'cat_champagne' },
+  { name: 'Taittinger La Francaise', category_id: 'cat_champagne' },
+] as const;
+
 const ensureCodaBeverageImport = (db: PlainObject) => {
   if (!Array.isArray(db.menu_categories) || !Array.isArray(db.menu_items)) {
     return false;
@@ -937,24 +1194,68 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
     parent_id: cocktailsCategoryId,
     display_order: 3,
   });
+  const bowlsCategoryId = ensureCategory({
+    id: 'cat_bowls',
+    name: 'Bowls',
+    parent_id: cocktailsCategoryId,
+    display_order: 4,
+  });
   const classicsCategoryId = ensureCategory({
     id: 'cat_classics',
     name: 'Classic',
     parent_id: cocktailsCategoryId,
-    display_order: 4,
+    display_order: 5,
   });
   const zeroProofCategoryId = ensureCategory({
     id: 'cat_zero_proof',
     name: 'Zero Proof',
     parent_id: cocktailsCategoryId,
-    display_order: 5,
+    display_order: 6,
   });
+
+  const spiritsRootCategoryId = ensureCategory({
+    id: 'cat_spirits',
+    name: 'Spirits',
+    parent_id: null,
+    display_order: 2,
+  });
+  const beerWineRootCategoryId = ensureCategory({
+    id: 'cat_beer_wine',
+    name: 'Beer & Wine',
+    parent_id: null,
+    display_order: 3,
+  });
+
+  const spiritsSubcategoryIds = new Map<string, string>();
+  SPIRITS_SUBCATEGORY_SEEDS.forEach((subcategory, index) => {
+    const ensuredId = ensureCategory({
+      id: subcategory.id,
+      name: subcategory.name,
+      parent_id: spiritsRootCategoryId,
+      display_order: index + 1,
+    });
+    spiritsSubcategoryIds.set(subcategory.id, ensuredId);
+  });
+
+  BEER_WINE_SUBCATEGORY_SEEDS.forEach((subcategory, index) => {
+    ensureCategory({
+      id: subcategory.id,
+      name: subcategory.name,
+      parent_id: beerWineRootCategoryId,
+      display_order: index + 1,
+    });
+  });
+
+  const tequilaBlancoCategoryId = spiritsSubcategoryIds.get('cat_tequila_blanco') || 'cat_tequila_blanco';
 
   const legacyCategoryTargets: Record<string, string> = {
     'Signature Cocktails': signatureCategoryId,
     'Happy Hour Specials': happyHourCategoryId,
     'Cocktail Flights': flightsCategoryId,
+    'Cocktail Bowls': bowlsCategoryId,
+    'Bowls': bowlsCategoryId,
     'Classic Cocktails': classicsCategoryId,
+    Agave: tequilaBlancoCategoryId,
   };
 
   for (const category of categories) {
@@ -975,6 +1276,15 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       category.updated_at = now;
       changed = true;
     }
+  }
+
+  for (const item of items) {
+    if (item.menu_type !== 'drinks' || typeof item.name !== 'string') continue;
+    if (!/\bbowl\b/i.test(item.name)) continue;
+    if (item.category_id === bowlsCategoryId) continue;
+    item.category_id = bowlsCategoryId;
+    item.updated_at = now;
+    changed = true;
   }
 
   const existingDrinkByKey = new Map<string, PlainObject>();
@@ -1003,10 +1313,13 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       .filter(Boolean);
     const isSignature = CODA_SIGNATURE_DRINKS.has(name);
     const isHappyHour = CODA_HAPPY_HOUR_DRINKS.has(name);
+    const isBowl = /\bbowl\b/i.test(name);
     const flightGroup = imported.flight ? normalizeDrinkName(imported.flight) : null;
 
     const categoryId = imported.non_alcoholic
       ? zeroProofCategoryId
+      : isBowl
+        ? bowlsCategoryId
       : isHappyHour
         ? happyHourCategoryId
         : isSignature
@@ -1195,6 +1508,100 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       coda_signature: false,
       coda_happy_hour: false,
       coda_flight_group: null,
+    });
+  }
+
+  const upsertCatalogDrink = (config: {
+    name: string;
+    category_id: string;
+    description?: string | null;
+    price?: number | null;
+    show_price?: boolean;
+    ingredients?: string[] | null;
+    alcohol_content?: number | null;
+  }) => {
+    const name = normalizeDrinkName(config.name);
+    let existing = items.find((item) => {
+      if (item.menu_type !== 'drinks') return false;
+      const itemName = typeof item.name === 'string' ? normalizeDrinkName(item.name) : '';
+      return itemName.toLowerCase() === name.toLowerCase();
+    });
+
+    if (!existing) {
+      existing = {
+        id: `item_${slug(name)}`,
+        name,
+        description: config.description ?? null,
+        price: config.price ?? null,
+        bottle_price: null,
+        image_url: null,
+        menu_type: 'drinks',
+        show_price: config.show_price ?? config.price != null,
+        show_description: Boolean(config.description),
+        active: true,
+        ingredients: config.ingredients ?? null,
+        alcohol_content: config.alcohol_content ?? null,
+        garnish: null,
+        category_id: config.category_id,
+        coda_signature: false,
+        coda_happy_hour: false,
+        coda_flight_group: null,
+        allergens: null,
+        is_vegetarian: true,
+        is_vegan: true,
+        is_gluten_free: true,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(existing);
+      changed = true;
+      return;
+    }
+
+    let itemChanged = false;
+    const ensureField = (field: string, value: any) => {
+      const current = existing[field];
+      if (current === undefined || current === null || current === '') {
+        existing[field] = value;
+        itemChanged = true;
+      }
+    };
+
+    ensureField('menu_type', 'drinks');
+    ensureField('active', true);
+    ensureField('show_price', config.show_price ?? config.price != null);
+    ensureField('show_description', Boolean(config.description));
+    ensureField('price', config.price ?? null);
+    ensureField('description', config.description ?? null);
+    ensureField('ingredients', config.ingredients ?? null);
+    ensureField('alcohol_content', config.alcohol_content ?? null);
+    ensureField('category_id', config.category_id);
+
+    if (!existing.created_at) {
+      existing.created_at = now;
+      itemChanged = true;
+    }
+    if (itemChanged) {
+      existing.updated_at = now;
+      changed = true;
+    }
+  };
+
+  for (const item of SPIRITS_ITEM_SEEDS) {
+    upsertCatalogDrink({
+      name: item.name,
+      category_id: item.category_id,
+      show_price: false,
+      alcohol_content: null,
+    });
+  }
+
+  for (const item of BEER_WINE_ITEM_SEEDS) {
+    upsertCatalogDrink({
+      name: item.name,
+      category_id: item.category_id,
+      show_price: false,
+      alcohol_content: null,
     });
   }
 
