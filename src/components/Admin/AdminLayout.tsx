@@ -74,6 +74,10 @@ const adminNavSections: NavSection[] = [
     ],
   },
   {
+    heading: 'Workforce OS',
+    items: [{ to: '/admin/workforce', label: 'Team + Labor', icon: Users }],
+  },
+  {
     heading: 'Content Management',
     items: [
       { to: '/admin/events', label: 'Event Management', icon: Calendar },

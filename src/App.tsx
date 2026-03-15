@@ -37,6 +37,7 @@ import BOHReservations from './components/Admin/BOHReservations';
 import BOHEventParties from './components/Admin/BOHEventParties';
 import BOHClasses from './components/Admin/BOHClasses';
 import TeamMembersAdmin from './components/Admin/TeamMembersAdmin';
+import WorkforceManagement from './components/Admin/WorkforceManagement';
 import type { ReservationIntent, ReservationPanelType } from './types/booking';
 
 function App() {
@@ -150,6 +151,7 @@ function App() {
         <Route path="/admin/boh/reservations" element={<AdminLayout><BOHReservations /></AdminLayout>} />
         <Route path="/admin/boh/events-parties" element={<AdminLayout><BOHEventParties /></AdminLayout>} />
         <Route path="/admin/boh/classes" element={<AdminLayout><BOHClasses /></AdminLayout>} />
+        <Route path="/admin/workforce" element={<AdminLayout><WorkforceManagement /></AdminLayout>} />
         
         {/* Career Management Routes */}
         <Route path="/admin/jobs" element={<AdminLayout><JobsAdmin /></AdminLayout>} />

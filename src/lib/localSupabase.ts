@@ -1061,6 +1061,313 @@ const defaultTeamMembers = () => [
   },
 ];
 
+const WORKFORCE_DEFAULT_LOCATION_ID = 'wf_loc_main';
+
+const normalizeTimeValue = (value: string) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '00:00:00';
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
+  if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
+  return '00:00:00';
+};
+
+const todayDateValue = () => new Date().toISOString().slice(0, 10);
+
+const asDateTimeValue = (dateValue: string, timeValue: string) => `${dateValue}T${normalizeTimeValue(timeValue)}`;
+
+const workforceRoleForTitle = (title: string) => {
+  const normalized = String(title || '').trim().toLowerCase();
+
+  if (normalized.includes('owner') || normalized.includes('manager')) return 'wf_role_manager';
+  if (normalized.includes('lead host') || normalized.includes('host')) return 'wf_role_host';
+  if (normalized.includes('bartender')) return 'wf_role_bartender';
+  if (normalized.includes('line cook') || normalized.includes('cook')) return 'wf_role_line_cook';
+  if (normalized.includes('server')) return 'wf_role_server';
+
+  return 'wf_role_server';
+};
+
+const workforceStationForRole = (roleId: string) => {
+  if (roleId === 'wf_role_manager') return 'wf_station_expo';
+  if (roleId === 'wf_role_host') return 'wf_station_host';
+  if (roleId === 'wf_role_bartender') return 'wf_station_bar';
+  if (roleId === 'wf_role_line_cook') return 'wf_station_line';
+  return 'wf_station_service';
+};
+
+const workforceRateForRole = (roleId: string) => {
+  if (roleId === 'wf_role_manager') return 42;
+  if (roleId === 'wf_role_host') return 24;
+  if (roleId === 'wf_role_bartender') return 30;
+  if (roleId === 'wf_role_line_cook') return 28;
+  return 23;
+};
+
+const workforceShiftWindowForRole = (roleId: string) => {
+  if (roleId === 'wf_role_manager') return { start: '14:00:00', end: '22:00:00' };
+  if (roleId === 'wf_role_host') return { start: '17:00:00', end: '23:00:00' };
+  if (roleId === 'wf_role_bartender') return { start: '16:00:00', end: '00:00:00' };
+  if (roleId === 'wf_role_line_cook') return { start: '15:00:00', end: '23:00:00' };
+  return { start: '17:00:00', end: '23:00:00' };
+};
+
+const buildDefaultWorkforceSeed = (teamMembers: PlainObject[]) => {
+  const roleRows = [
+    {
+      id: 'wf_role_manager',
+      name: 'Manager',
+      department_id: 'wf_dept_management',
+      default_station_id: 'wf_station_expo',
+      labor_class: 'management',
+      hourly_rate: 42,
+      active: true,
+      created_at: nowIso(),
+    },
+    {
+      id: 'wf_role_host',
+      name: 'Host',
+      department_id: 'wf_dept_service',
+      default_station_id: 'wf_station_host',
+      labor_class: 'front_of_house',
+      hourly_rate: 24,
+      active: true,
+      created_at: nowIso(),
+    },
+    {
+      id: 'wf_role_server',
+      name: 'Server',
+      department_id: 'wf_dept_service',
+      default_station_id: 'wf_station_service',
+      labor_class: 'front_of_house',
+      hourly_rate: 23,
+      active: true,
+      created_at: nowIso(),
+    },
+    {
+      id: 'wf_role_bartender',
+      name: 'Bartender',
+      department_id: 'wf_dept_bar',
+      default_station_id: 'wf_station_bar',
+      labor_class: 'bar',
+      hourly_rate: 30,
+      active: true,
+      created_at: nowIso(),
+    },
+    {
+      id: 'wf_role_line_cook',
+      name: 'Line Cook',
+      department_id: 'wf_dept_kitchen',
+      default_station_id: 'wf_station_line',
+      labor_class: 'kitchen',
+      hourly_rate: 28,
+      active: true,
+      created_at: nowIso(),
+    },
+    {
+      id: 'wf_role_expo',
+      name: 'Expo',
+      department_id: 'wf_dept_kitchen',
+      default_station_id: 'wf_station_expo',
+      labor_class: 'kitchen',
+      hourly_rate: 29,
+      active: true,
+      created_at: nowIso(),
+    },
+  ];
+
+  const today = todayDateValue();
+
+  const workforceEmployees = teamMembers.map((member) => {
+    const roleId = workforceRoleForTitle(String(member.title || ''));
+    const employeeId = `wf_emp_${String(member.id || createId('wf_emp')).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    return {
+      id: employeeId,
+      user_id: String(member.user_id || ''),
+      email: String(member.email || ''),
+      name: String(member.name || 'Team Member'),
+      title: String(member.title || 'Employee'),
+      status: member.active === false ? 'inactive' : 'active',
+      default_location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+      hire_date: today,
+      pay_basis: 'hourly',
+      hourly_rate: workforceRateForRole(roleId),
+      training_state: 'active',
+      attendance_score: 100,
+      created_at: nowIso(),
+    };
+  });
+
+  const employeeRoles = workforceEmployees.map((employee) => {
+    const sourceMember = teamMembers.find((member) => String(member.user_id || '') === String(employee.user_id || '')) || {};
+    const roleId = workforceRoleForTitle(String(sourceMember.title || employee.title || ''));
+    return {
+      id: `wf_er_${employee.id}`,
+      employee_id: employee.id,
+      role_id: roleId,
+      primary_role: true,
+      active: true,
+      created_at: nowIso(),
+    };
+  });
+
+  const shifts = employeeRoles.map((assignment) => {
+    const shiftWindow = workforceShiftWindowForRole(String(assignment.role_id || ''));
+    const stationId = workforceStationForRole(String(assignment.role_id || ''));
+    return {
+      id: `wf_shift_${assignment.employee_id}`,
+      employee_id: assignment.employee_id,
+      role_id: assignment.role_id,
+      location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+      station_id: stationId,
+      start_time: asDateTimeValue(today, shiftWindow.start),
+      end_time: asDateTimeValue(today, shiftWindow.end),
+      break_rules: 'ca_standard',
+      wage_rate: workforceRateForRole(String(assignment.role_id || '')),
+      hours_scheduled: 8,
+      status: 'published',
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    };
+  });
+
+  return {
+    workforce_locations: [
+      {
+        id: WORKFORCE_DEFAULT_LOCATION_ID,
+        name: 'Spoonbill Lounge',
+        timezone: 'America/Los_Angeles',
+        active: true,
+        created_at: nowIso(),
+      },
+    ],
+    workforce_departments: [
+      { id: 'wf_dept_management', name: 'Management', active: true, created_at: nowIso() },
+      { id: 'wf_dept_service', name: 'Service', active: true, created_at: nowIso() },
+      { id: 'wf_dept_bar', name: 'Bar', active: true, created_at: nowIso() },
+      { id: 'wf_dept_kitchen', name: 'Kitchen', active: true, created_at: nowIso() },
+    ],
+    workforce_stations: [
+      { id: 'wf_station_host', name: 'Host Stand', department_id: 'wf_dept_service', location_id: WORKFORCE_DEFAULT_LOCATION_ID, active: true, created_at: nowIso() },
+      { id: 'wf_station_service', name: 'Main Floor', department_id: 'wf_dept_service', location_id: WORKFORCE_DEFAULT_LOCATION_ID, active: true, created_at: nowIso() },
+      { id: 'wf_station_bar', name: 'Main Bar', department_id: 'wf_dept_bar', location_id: WORKFORCE_DEFAULT_LOCATION_ID, active: true, created_at: nowIso() },
+      { id: 'wf_station_line', name: 'Hot Line', department_id: 'wf_dept_kitchen', location_id: WORKFORCE_DEFAULT_LOCATION_ID, active: true, created_at: nowIso() },
+      { id: 'wf_station_expo', name: 'Expo', department_id: 'wf_dept_kitchen', location_id: WORKFORCE_DEFAULT_LOCATION_ID, active: true, created_at: nowIso() },
+      { id: 'wf_station_dish', name: 'Dish', department_id: 'wf_dept_kitchen', location_id: WORKFORCE_DEFAULT_LOCATION_ID, active: true, created_at: nowIso() },
+    ],
+    workforce_roles: roleRows,
+    workforce_employees: workforceEmployees,
+    workforce_employee_roles: employeeRoles,
+    workforce_shift_templates: [
+      {
+        id: 'wf_tpl_prep_am',
+        name: 'Prep AM',
+        role_id: 'wf_role_line_cook',
+        station_id: 'wf_station_line',
+        start_time: '06:00:00',
+        end_time: '14:00:00',
+        active: true,
+        created_at: nowIso(),
+      },
+      {
+        id: 'wf_tpl_service_host',
+        name: 'Host PM',
+        role_id: 'wf_role_host',
+        station_id: 'wf_station_host',
+        start_time: '17:00:00',
+        end_time: '23:00:00',
+        active: true,
+        created_at: nowIso(),
+      },
+      {
+        id: 'wf_tpl_service_bar',
+        name: 'Bar PM',
+        role_id: 'wf_role_bartender',
+        station_id: 'wf_station_bar',
+        start_time: '16:00:00',
+        end_time: '00:00:00',
+        active: true,
+        created_at: nowIso(),
+      },
+    ],
+    workforce_shifts: shifts,
+    workforce_punches: [],
+    workforce_breaks: [],
+    workforce_tasks: [
+      {
+        id: 'wf_task_line_check',
+        title: 'Line Check',
+        assigned_role_id: 'wf_role_line_cook',
+        location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+        station_id: 'wf_station_line',
+        due_time: asDateTimeValue(today, '16:30:00'),
+        completion_status: 'open',
+        critical: true,
+        created_at: nowIso(),
+      },
+      {
+        id: 'wf_task_bar_open',
+        title: 'Bar Setup + Garnish Prep',
+        assigned_role_id: 'wf_role_bartender',
+        location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+        station_id: 'wf_station_bar',
+        due_time: asDateTimeValue(today, '16:00:00'),
+        completion_status: 'open',
+        critical: false,
+        created_at: nowIso(),
+      },
+    ],
+    workforce_log_entries: [
+      {
+        id: 'wf_log_bootstrap',
+        author_name: 'System',
+        timestamp: nowIso(),
+        location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+        category: 'operations',
+        severity: 'info',
+        message: 'Workforce OS initialized with shared labor ledger.',
+        created_at: nowIso(),
+      },
+    ],
+    workforce_rules: [
+      {
+        id: 'wf_rule_ca_meal_1',
+        rule_code: 'CA_MEAL_1',
+        jurisdiction: 'CA',
+        trigger_event: 'PUNCH',
+        expression_json: '{"threshold_hours":5,"break_type":"meal"}',
+        block_or_warn: 'warn',
+        active: true,
+        created_at: nowIso(),
+      },
+      {
+        id: 'wf_rule_overtime_daily',
+        rule_code: 'OT_DAILY',
+        jurisdiction: 'CA',
+        trigger_event: 'PUNCH',
+        expression_json: '{"threshold_hours":8}',
+        block_or_warn: 'warn',
+        active: true,
+        created_at: nowIso(),
+      },
+    ],
+    workforce_events: [
+      {
+        id: 'wf_evt_bootstrap',
+        event_type: 'WORKFORCE_BOOTSTRAP',
+        actor_id: 'system',
+        subject_type: 'workforce',
+        subject_id: 'initial_seed',
+        location_id: WORKFORCE_DEFAULT_LOCATION_ID,
+        timestamp: nowIso(),
+        metadata_json: '{"source":"default_seed"}',
+        correlation_id: 'wf_corr_bootstrap',
+        created_at: nowIso(),
+      },
+    ],
+    workforce_dashboard_snapshots: [],
+  };
+};
+
 const buildDefaultClassSessions = (events: PlainObject[]) =>
   events
     .filter((event) => event.booking_type === 'class')
@@ -1078,6 +1385,7 @@ const buildDefaultClassSessions = (events: PlainObject[]) =>
 const buildDefaultDb = () => {
   const { categories, items } = seedMenu();
   const tastings = seedTastings();
+  const workforceSeed = buildDefaultWorkforceSeed(defaultTeamMembers());
   const seedEvents = [
     {
       id: 'event_mixology',
@@ -1243,6 +1551,7 @@ const buildDefaultDb = () => {
         created_at: nowIso(),
       },
     ],
+    ...workforceSeed,
     team_members: defaultTeamMembers(),
   };
 };
@@ -3066,6 +3375,81 @@ const ensureTeamMembers = (db: PlainObject, users: PlainObject[]) => {
   return changed;
 };
 
+const ensureWorkforceFoundation = (db: PlainObject, users: PlainObject[]) => {
+  let changed = false;
+  const teamMembers = Array.isArray(db.team_members) && db.team_members.length > 0 ? db.team_members : defaultTeamMembers();
+  const seed = buildDefaultWorkforceSeed(teamMembers);
+
+  Object.entries(seed).forEach(([tableName, defaultRows]) => {
+    if (!Array.isArray(db[tableName])) {
+      db[tableName] = [];
+      changed = true;
+    }
+
+    if (Array.isArray(defaultRows) && db[tableName].length === 0 && defaultRows.length > 0) {
+      db[tableName] = defaultRows.map((row) => ({ ...row }));
+      changed = true;
+    }
+  });
+
+  if (Array.isArray(db.workforce_employees)) {
+    const userById = users.reduce((accumulator, user) => {
+      if (!user?.id) return accumulator;
+      accumulator[String(user.id)] = user;
+      return accumulator;
+    }, {} as Record<string, PlainObject>);
+
+    db.workforce_employees = db.workforce_employees.map((employee: PlainObject) => {
+      const nextEmployee = { ...employee };
+      const linkedUser = userById[String(nextEmployee.user_id || '')];
+      if (linkedUser && !nextEmployee.email) {
+        nextEmployee.email = String(linkedUser.email || '');
+        changed = true;
+      }
+
+      if (!nextEmployee.default_location_id) {
+        nextEmployee.default_location_id = WORKFORCE_DEFAULT_LOCATION_ID;
+        changed = true;
+      }
+
+      if (!nextEmployee.status) {
+        nextEmployee.status = 'active';
+        changed = true;
+      }
+
+      if (!nextEmployee.hire_date) {
+        nextEmployee.hire_date = todayDateValue();
+        changed = true;
+      }
+
+      if (!nextEmployee.pay_basis) {
+        nextEmployee.pay_basis = 'hourly';
+        changed = true;
+      }
+
+      if (nextEmployee.hourly_rate === undefined || nextEmployee.hourly_rate === null) {
+        const roleId = workforceRoleForTitle(String(nextEmployee.title || ''));
+        nextEmployee.hourly_rate = workforceRateForRole(roleId);
+        changed = true;
+      }
+
+      if (!nextEmployee.training_state) {
+        nextEmployee.training_state = 'active';
+        changed = true;
+      }
+
+      if (nextEmployee.attendance_score === undefined || nextEmployee.attendance_score === null) {
+        nextEmployee.attendance_score = 100;
+        changed = true;
+      }
+
+      return nextEmployee;
+    });
+  }
+
+  return changed;
+};
+
 const ensureRoleAssignments = (db: PlainObject, users: PlainObject[]) => {
   let changed = false;
 
@@ -3113,6 +3497,10 @@ const ensureRoleAssignments = (db: PlainObject, users: PlainObject[]) => {
   }
 
   if (ensureTeamMembers(db, users)) {
+    changed = true;
+  }
+
+  if (ensureWorkforceFoundation(db, users)) {
     changed = true;
   }
 
