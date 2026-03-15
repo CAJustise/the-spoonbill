@@ -32,10 +32,11 @@ import AdminLayout from './components/Admin/AdminLayout';
 import Dashboard from './components/Admin/Dashboard';
 import ImageManager from './components/Admin/ImageManager';
 import Settings from './components/Admin/Settings';
-import HostDashboard from './components/Admin/HostDashboard';
+import PortalDashboard from './components/Admin/PortalDashboard';
 import BOHReservations from './components/Admin/BOHReservations';
 import BOHEventParties from './components/Admin/BOHEventParties';
 import BOHClasses from './components/Admin/BOHClasses';
+import TeamMembersAdmin from './components/Admin/TeamMembersAdmin';
 import type { ReservationIntent, ReservationPanelType } from './types/booking';
 
 function App() {
@@ -132,6 +133,7 @@ function App() {
         <Route path="/careers/apply" element={<ApplicationForm />} />
         <Route path="/admin/login" element={<LoginPage portal="admin" />} />
         <Route path="/host/login" element={<LoginPage portal="host" />} />
+        <Route path="/staff/login" element={<LoginPage portal="staff" />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout><Dashboard /></AdminLayout>} />
@@ -158,13 +160,20 @@ function App() {
         {/* Investment Management Route */}
         <Route path="/admin/investor-submissions" element={<AdminLayout><InvestorSubmissionsAdmin /></AdminLayout>} />
         
+        <Route path="/admin/team-members" element={<AdminLayout><TeamMembersAdmin /></AdminLayout>} />
         <Route path="/admin/settings" element={<AdminLayout><Settings /></AdminLayout>} />
 
         {/* Host Routes */}
-        <Route path="/host" element={<AdminLayout portal="host"><HostDashboard /></AdminLayout>} />
-        <Route path="/host/reservations" element={<AdminLayout portal="host"><BOHReservations /></AdminLayout>} />
-        <Route path="/host/events-parties" element={<AdminLayout portal="host"><BOHEventParties /></AdminLayout>} />
-        <Route path="/host/classes" element={<AdminLayout portal="host"><BOHClasses /></AdminLayout>} />
+        <Route path="/host" element={<AdminLayout portal="host"><PortalDashboard portal="host" /></AdminLayout>} />
+        <Route path="/host/reservations" element={<AdminLayout portal="host" requiredCapability="reservations"><BOHReservations /></AdminLayout>} />
+        <Route path="/host/events-parties" element={<AdminLayout portal="host" requiredCapability="events_parties"><BOHEventParties /></AdminLayout>} />
+        <Route path="/host/classes" element={<AdminLayout portal="host" requiredCapability="classes"><BOHClasses /></AdminLayout>} />
+
+        {/* Staff Routes */}
+        <Route path="/staff" element={<AdminLayout portal="staff"><PortalDashboard portal="staff" /></AdminLayout>} />
+        <Route path="/staff/reservations" element={<AdminLayout portal="staff" requiredCapability="reservations"><BOHReservations /></AdminLayout>} />
+        <Route path="/staff/events-parties" element={<AdminLayout portal="staff" requiredCapability="events_parties"><BOHEventParties /></AdminLayout>} />
+        <Route path="/staff/classes" element={<AdminLayout portal="staff" requiredCapability="classes"><BOHClasses /></AdminLayout>} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

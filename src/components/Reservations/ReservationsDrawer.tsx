@@ -15,6 +15,7 @@ interface ReservationsDrawerProps {
 
 interface ClassEvent {
   id: string;
+  event_id: string;
   title: string;
   description: string;
   date: string;
@@ -79,6 +80,7 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
   const [timeSlots, setTimeSlots] = useState<SlotAvailability[]>([]);
   const [classEvents, setClassEvents] = useState<ClassEvent[]>([]);
   const [selectedClassEventId, setSelectedClassEventId] = useState('');
+  const [requestedClassEventId, setRequestedClassEventId] = useState<string | null>(null);
   const [classGuestCount, setClassGuestCount] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,9 +109,15 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
     setError(null);
     setSelectedTimeSlot('');
     if (intent.type === 'classes' && intent.eventId) {
-      setSelectedClassEventId(intent.eventId);
+      const matchingClassSession = classEvents.find((classEvent) => classEvent.event_id === intent.eventId);
+      if (matchingClassSession) {
+        setSelectedClassEventId(matchingClassSession.id);
+        setRequestedClassEventId(null);
+      } else {
+        setRequestedClassEventId(intent.eventId);
+      }
     }
-  }, [intent]);
+  }, [intent, classEvents]);
 
   useEffect(() => {
     if (!date || reservationType === 'classes') {
@@ -128,7 +136,7 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
 
   const fetchClassEvents = async () => {
     try {
-      const [{ data: classes, error: classError }, { data: bookings, error: bookingsError }] = await Promise.all([
+      const [{ data: classes, error: classError }, { data: sessions, error: sessionsError }, { data: bookings, error: bookingsError }] = await Promise.all([
         supabase
           .from('events')
           .select('*')
@@ -137,44 +145,111 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
           .order('date')
           .order('time'),
         supabase
+          .from('class_sessions')
+          .select('*')
+          .eq('active', true)
+          .order('class_date')
+          .order('class_time'),
+        supabase
           .from('class_bookings')
           .select('*'),
       ]);
 
       if (classError) throw classError;
+      if (sessionsError) throw sessionsError;
       if (bookingsError) throw bookingsError;
+
+      const classEventMap = (Array.isArray(classes) ? classes : []).reduce((accumulator, classEvent) => {
+        const id = String((classEvent as { id?: unknown }).id || '');
+        if (!id) return accumulator;
+        accumulator[id] = classEvent;
+        return accumulator;
+      }, {} as Record<string, unknown>);
+
+      const sessionByScheduleKey = (Array.isArray(sessions) ? sessions : []).reduce((accumulator, session) => {
+        const key = `${String((session as { event_id?: unknown }).event_id || '')}::${String((session as { class_date?: unknown }).class_date || '')}::${String((session as { class_time?: unknown }).class_time || '')}`;
+        accumulator[key] = String((session as { id?: unknown }).id || '');
+        return accumulator;
+      }, {} as Record<string, string>);
 
       const enrollmentMap = (Array.isArray(bookings) ? bookings : []).reduce((accumulator, booking) => {
         const status = String((booking as { status?: unknown }).status || 'pending').toLowerCase();
         if (status === 'cancelled' || status === 'declined') {
           return accumulator;
         }
-        const eventId = String((booking as { event_id?: unknown }).event_id || '');
-        if (!eventId) return accumulator;
+        const eventId = String((booking as { event_id?: unknown }).event_id || '').trim();
+        const sessionId = String((booking as { class_session_id?: unknown }).class_session_id || '').trim();
+        const classDate = String((booking as { class_date?: unknown }).class_date || '').trim();
+        const classTime = String((booking as { class_time?: unknown }).class_time || '').trim();
         const guests = Number((booking as { guest_count?: unknown }).guest_count || 0);
-        accumulator[eventId] = (accumulator[eventId] || 0) + guests;
+        if (sessionId) {
+          accumulator[sessionId] = (accumulator[sessionId] || 0) + guests;
+          return accumulator;
+        }
+        if (eventId && classDate && classTime) {
+          const fallbackSessionKey = `${eventId}::${classDate}::${classTime}`;
+          const fallbackSessionId = sessionByScheduleKey[fallbackSessionKey];
+          if (fallbackSessionId) {
+            accumulator[fallbackSessionId] = (accumulator[fallbackSessionId] || 0) + guests;
+          }
+        }
         return accumulator;
       }, {} as Record<string, number>);
 
-      const normalizedClasses = (Array.isArray(classes) ? classes : []).map((classEvent) => {
-        const id = String((classEvent as { id?: unknown }).id || '');
-        const capacity = Number((classEvent as { booking_capacity?: unknown }).booking_capacity || 0);
-        const enrolled = enrollmentMap[id] || 0;
-        return {
-          id,
-          title: String((classEvent as { title?: unknown }).title || ''),
-          description: String((classEvent as { description?: unknown }).description || ''),
-          date: String((classEvent as { date?: unknown }).date || ''),
-          time: String((classEvent as { time?: unknown }).time || ''),
-          price: ((classEvent as { price?: unknown }).price as string | null) || null,
-          booking_capacity: capacity,
-          booking_minimum: Math.max(1, Number((classEvent as { booking_minimum?: unknown }).booking_minimum || 1)),
-          enrolled,
-          remaining: Math.max(0, capacity - enrolled),
-        } satisfies ClassEvent;
+      const normalizedClasses = (Array.isArray(sessions) ? sessions : [])
+        .map((session) => {
+          const sessionId = String((session as { id?: unknown }).id || '');
+          const eventId = String((session as { event_id?: unknown }).event_id || '');
+          const classEvent = classEventMap[eventId] as Record<string, unknown> | undefined;
+          if (!sessionId || !classEvent) return null;
+
+          const capacity = Number(
+            (session as { capacity_override?: unknown }).capacity_override ??
+              (classEvent as { booking_capacity?: unknown }).booking_capacity ??
+              0,
+          );
+          const minimum = Math.max(
+            1,
+            Number(
+              (session as { minimum_override?: unknown }).minimum_override ??
+                (classEvent as { booking_minimum?: unknown }).booking_minimum ??
+                1,
+            ),
+          );
+          const enrolled = enrollmentMap[sessionId] || 0;
+
+          return {
+            id: sessionId,
+            event_id: eventId,
+            title: String((classEvent as { title?: unknown }).title || ''),
+            description: String((classEvent as { description?: unknown }).description || ''),
+            date: String((session as { class_date?: unknown }).class_date || ''),
+            time: String((session as { class_time?: unknown }).class_time || ''),
+            price: ((classEvent as { price?: unknown }).price as string | null) || null,
+            booking_capacity: capacity,
+            booking_minimum: minimum,
+            enrolled,
+            remaining: Math.max(0, capacity - enrolled),
+          } satisfies ClassEvent;
+        })
+        .filter(Boolean) as ClassEvent[];
+
+      normalizedClasses.sort((a, b) => {
+        const dateComparison = a.date.localeCompare(b.date);
+        if (dateComparison !== 0) return dateComparison;
+        return a.time.localeCompare(b.time);
       });
 
       setClassEvents(normalizedClasses);
+
+      if (requestedClassEventId) {
+        const matchingSession = normalizedClasses.find((classEvent) => classEvent.event_id === requestedClassEventId);
+        if (matchingSession) {
+          setSelectedClassEventId(matchingSession.id);
+          setRequestedClassEventId(null);
+        }
+      }
+
       if (selectedClassEventId && !normalizedClasses.some((classEvent) => classEvent.id === selectedClassEventId)) {
         setSelectedClassEventId('');
       }
@@ -321,33 +396,29 @@ const ReservationsDrawer: React.FC<ReservationsDrawerProps> = ({ intent }) => {
         return;
       }
 
-      const capacityResult = await validateClassCapacity(selectedClassEventId, classGuestCount);
+      if (!selectedClassEvent) {
+        setError('Selected class session could not be found.');
+        return;
+      }
+
+      const capacityResult = await validateClassCapacity(
+        selectedClassEvent.event_id,
+        selectedClassEvent.id,
+        classGuestCount,
+      );
       if (!capacityResult.allowed) {
         setError(capacityResult.message);
         return;
       }
 
-      const classEvent =
-        selectedClassEvent ||
-        (capacityResult.classEvent
-          ? {
-              id: String((capacityResult.classEvent as { id?: unknown }).id || ''),
-              title: String((capacityResult.classEvent as { title?: unknown }).title || ''),
-              date: String((capacityResult.classEvent as { date?: unknown }).date || ''),
-              time: String((capacityResult.classEvent as { time?: unknown }).time || ''),
-            }
-          : null);
-
-      if (!classEvent) {
-        setError('Selected class could not be found.');
-        return;
-      }
+      const classEvent = selectedClassEvent;
 
       const { error: insertError } = await supabase
         .from('class_bookings')
         .insert([
           {
-            event_id: selectedClassEventId,
+            event_id: classEvent.event_id,
+            class_session_id: selectedClassEventId,
             class_title: classEvent.title,
             class_date: classEvent.date,
             class_time: classEvent.time,

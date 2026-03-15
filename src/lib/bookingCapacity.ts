@@ -145,7 +145,7 @@ export const validateSlotCapacity = async (
   };
 };
 
-export const validateClassCapacity = async (eventId: string, requestSize: number) => {
+export const validateClassCapacity = async (eventId: string, classSessionId: string, requestSize: number) => {
   const { data: classEvent, error: eventError } = await supabase
     .from('events')
     .select('*')
@@ -160,7 +160,33 @@ export const validateClassCapacity = async (eventId: string, requestSize: number
     throw new Error('Class event not found');
   }
 
-  const capacity = toNumber((classEvent as { booking_capacity?: unknown }).booking_capacity, 0);
+  const { data: classSession, error: sessionError } = await supabase
+    .from('class_sessions')
+    .select('*')
+    .eq('id', classSessionId)
+    .single();
+
+  if (sessionError) {
+    throw new Error(sessionError.message || 'Unable to load class session details');
+  }
+
+  if (!classSession) {
+    throw new Error('Class session not found');
+  }
+
+  const capacity = toNumber(
+    (classSession as { capacity_override?: unknown }).capacity_override ??
+      (classEvent as { booking_capacity?: unknown }).booking_capacity,
+    0,
+  );
+  const minimum = Math.max(
+    1,
+    toNumber(
+      (classSession as { minimum_override?: unknown }).minimum_override ??
+        (classEvent as { booking_minimum?: unknown }).booking_minimum,
+      1,
+    ),
+  );
 
   const { data: bookings, error: bookingsError } = await supabase
     .from('class_bookings')
@@ -175,27 +201,57 @@ export const validateClassCapacity = async (eventId: string, requestSize: number
     if (!shouldCountAgainstCapacity((row as { status?: unknown }).status)) {
       return total;
     }
+    const rowSessionId = String((row as { class_session_id?: unknown }).class_session_id ?? '').trim();
+    const rowDate = String((row as { class_date?: unknown }).class_date ?? '').trim();
+    const rowTime = String((row as { class_time?: unknown }).class_time ?? '').trim();
+    const sessionDate = String((classSession as { class_date?: unknown }).class_date ?? '').trim();
+    const sessionTime = String((classSession as { class_time?: unknown }).class_time ?? '').trim();
+
+    const isMatchingSession =
+      rowSessionId === classSessionId ||
+      (!rowSessionId && rowDate === sessionDate && rowTime === sessionTime);
+
+    if (!isMatchingSession) {
+      return total;
+    }
     return total + toNumber((row as { guest_count?: unknown }).guest_count, 0);
   }, 0);
+
+  if (requestSize < minimum) {
+    return {
+      allowed: false,
+      capacity,
+      minimum,
+      used,
+      remaining: Math.max(0, capacity - used),
+      message: `This class requires at least ${minimum} guests per booking.`,
+      classEvent,
+      classSession,
+    };
+  }
 
   const remaining = Math.max(0, capacity - used);
   if (remaining < requestSize) {
     return {
       allowed: false,
       capacity,
+      minimum,
       used,
       remaining,
       message: `Only ${remaining} class spots remain.`,
       classEvent,
+      classSession,
     };
   }
 
   return {
     allowed: true,
     capacity,
+    minimum,
     used,
     remaining,
     message: '',
     classEvent,
+    classSession,
   };
 };

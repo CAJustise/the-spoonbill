@@ -33,6 +33,18 @@ const DEFAULT_ADMIN_PASSWORD = 'spoonbill-admin';
 const DEFAULT_HOST_USER_ID = 'host_local_user';
 const DEFAULT_HOST_EMAIL = 'host@spoonbill.local';
 const DEFAULT_HOST_PASSWORD = 'spoonbill-host';
+const DEFAULT_HOST_LEAD_USER_ID = 'host_local_lead';
+const DEFAULT_HOST_LEAD_EMAIL = 'hostlead@spoonbill.local';
+const DEFAULT_HOST_LEAD_PASSWORD = 'spoonbill-hostlead';
+const DEFAULT_LINE_COOK_USER_ID = 'staff_local_line_cook';
+const DEFAULT_LINE_COOK_EMAIL = 'linecook@spoonbill.local';
+const DEFAULT_LINE_COOK_PASSWORD = 'spoonbill-linecook';
+const DEFAULT_BARTENDER_USER_ID = 'staff_local_bartender';
+const DEFAULT_BARTENDER_EMAIL = 'bartender@spoonbill.local';
+const DEFAULT_BARTENDER_PASSWORD = 'spoonbill-bartender';
+const DEFAULT_SERVER_USER_ID = 'staff_local_server';
+const DEFAULT_SERVER_EMAIL = 'server@spoonbill.local';
+const DEFAULT_SERVER_PASSWORD = 'spoonbill-server';
 const TASTING_MENU_MIGRATION_FLAG = 'tastings_seed_20260315';
 
 const nowIso = () => new Date().toISOString();
@@ -929,9 +941,177 @@ const seedTastings = () => {
   return { menus, courses, items };
 };
 
+const defaultLocalUsers = () => [
+  {
+    id: DEFAULT_ADMIN_USER_ID,
+    email: DEFAULT_ADMIN_EMAIL,
+    password: DEFAULT_ADMIN_PASSWORD,
+    created_at: nowIso(),
+  },
+  {
+    id: DEFAULT_HOST_USER_ID,
+    email: DEFAULT_HOST_EMAIL,
+    password: DEFAULT_HOST_PASSWORD,
+    created_at: nowIso(),
+  },
+  {
+    id: DEFAULT_HOST_LEAD_USER_ID,
+    email: DEFAULT_HOST_LEAD_EMAIL,
+    password: DEFAULT_HOST_LEAD_PASSWORD,
+    created_at: nowIso(),
+  },
+  {
+    id: DEFAULT_LINE_COOK_USER_ID,
+    email: DEFAULT_LINE_COOK_EMAIL,
+    password: DEFAULT_LINE_COOK_PASSWORD,
+    created_at: nowIso(),
+  },
+  {
+    id: DEFAULT_BARTENDER_USER_ID,
+    email: DEFAULT_BARTENDER_EMAIL,
+    password: DEFAULT_BARTENDER_PASSWORD,
+    created_at: nowIso(),
+  },
+  {
+    id: DEFAULT_SERVER_USER_ID,
+    email: DEFAULT_SERVER_EMAIL,
+    password: DEFAULT_SERVER_PASSWORD,
+    created_at: nowIso(),
+  },
+];
+
+const defaultTeamMembers = () => [
+  {
+    id: 'tm_owner',
+    user_id: DEFAULT_ADMIN_USER_ID,
+    email: DEFAULT_ADMIN_EMAIL,
+    name: 'Owner Admin',
+    title: 'Owner',
+    portal: 'admin',
+    can_view_reservations: true,
+    can_view_events_parties: true,
+    can_view_classes: true,
+    active: true,
+    created_at: nowIso(),
+  },
+  {
+    id: 'tm_host',
+    user_id: DEFAULT_HOST_USER_ID,
+    email: DEFAULT_HOST_EMAIL,
+    name: 'Host Account',
+    title: 'Host',
+    portal: 'host',
+    can_view_reservations: true,
+    can_view_events_parties: true,
+    can_view_classes: true,
+    active: true,
+    created_at: nowIso(),
+  },
+  {
+    id: 'tm_host_lead',
+    user_id: DEFAULT_HOST_LEAD_USER_ID,
+    email: DEFAULT_HOST_LEAD_EMAIL,
+    name: 'Kai Morgan',
+    title: 'Lead Host',
+    portal: 'host',
+    can_view_reservations: true,
+    can_view_events_parties: true,
+    can_view_classes: true,
+    active: true,
+    created_at: nowIso(),
+  },
+  {
+    id: 'tm_line_cook',
+    user_id: DEFAULT_LINE_COOK_USER_ID,
+    email: DEFAULT_LINE_COOK_EMAIL,
+    name: 'Marco Diaz',
+    title: 'Line Cook',
+    portal: 'staff',
+    can_view_reservations: false,
+    can_view_events_parties: false,
+    can_view_classes: false,
+    active: true,
+    created_at: nowIso(),
+  },
+  {
+    id: 'tm_bartender',
+    user_id: DEFAULT_BARTENDER_USER_ID,
+    email: DEFAULT_BARTENDER_EMAIL,
+    name: 'Nina Park',
+    title: 'Bartender',
+    portal: 'staff',
+    can_view_reservations: false,
+    can_view_events_parties: true,
+    can_view_classes: true,
+    active: true,
+    created_at: nowIso(),
+  },
+  {
+    id: 'tm_server',
+    user_id: DEFAULT_SERVER_USER_ID,
+    email: DEFAULT_SERVER_EMAIL,
+    name: 'Avery Cole',
+    title: 'Server',
+    portal: 'staff',
+    can_view_reservations: true,
+    can_view_events_parties: false,
+    can_view_classes: false,
+    active: true,
+    created_at: nowIso(),
+  },
+];
+
+const buildDefaultClassSessions = (events: PlainObject[]) =>
+  events
+    .filter((event) => event.booking_type === 'class')
+    .map((event) => ({
+      id: createId('class_session'),
+      event_id: event.id,
+      class_date: event.date,
+      class_time: event.time,
+      capacity_override: event.booking_capacity ?? null,
+      minimum_override: event.booking_minimum ?? 1,
+      active: true,
+      created_at: nowIso(),
+    }));
+
 const buildDefaultDb = () => {
   const { categories, items } = seedMenu();
   const tastings = seedTastings();
+  const seedEvents = [
+    {
+      id: 'event_mixology',
+      title: 'Island Mixology Class',
+      description: 'Hands-on class featuring three signature Spoonbill cocktails.',
+      date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      time: '19:00:00',
+      price: 85,
+      image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
+      booking_type: 'class',
+      booking_url: null,
+      booking_capacity: 16,
+      booking_minimum: 1,
+      display_order: 1,
+      active: true,
+      created_at: nowIso(),
+    },
+    {
+      id: 'event_tasting',
+      title: 'Pacific Rim Tasting Night',
+      description: 'Chef-led tasting with paired cocktails.',
+      date: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+      time: '18:30:00',
+      price: 125,
+      image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
+      booking_type: 'class',
+      booking_url: null,
+      booking_capacity: 28,
+      booking_minimum: 1,
+      display_order: 2,
+      active: true,
+      created_at: nowIso(),
+    },
+  ];
 
   return {
     menu_categories: categories,
@@ -941,40 +1121,8 @@ const buildDefaultDb = () => {
     tasting_menu_items: tastings.items,
     tasting_menu_templates: [],
     tasting_menu_course_templates: [],
-    events: [
-      {
-        id: 'event_mixology',
-        title: 'Island Mixology Class',
-        description: 'Hands-on class featuring three signature Spoonbill cocktails.',
-        date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-        time: '19:00:00',
-        price: 85,
-        image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/mixologyclass.png',
-        booking_type: 'class',
-        booking_url: null,
-        booking_capacity: 16,
-        booking_minimum: 1,
-        display_order: 1,
-        active: true,
-        created_at: nowIso(),
-      },
-      {
-        id: 'event_tasting',
-        title: 'Pacific Rim Tasting Night',
-        description: 'Chef-led tasting with paired cocktails.',
-        date: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
-        time: '18:30:00',
-        price: 125,
-        image_url: 'https://raw.githubusercontent.com/CAJustise/the-spoonbill/main/public/images/library/misc/tiki-noir.png',
-        booking_type: 'class',
-        booking_url: null,
-        booking_capacity: 28,
-        booking_minimum: 1,
-        display_order: 2,
-        active: true,
-        created_at: nowIso(),
-      },
-    ],
+    events: seedEvents,
+    class_sessions: buildDefaultClassSessions(seedEvents),
     time_slots: buildDefaultTimeSlots(),
     reservations: [],
     event_bookings: [],
@@ -1053,6 +1201,7 @@ const buildDefaultDb = () => {
       { id: 'role_owner', name: 'Owner', description: 'Full BOH access', created_at: nowIso() },
       { id: 'role_manager', name: 'Manager', description: 'Operational BOH access', created_at: nowIso() },
       { id: 'role_host', name: 'Host', description: 'Reservations, events, and classes BOH access', created_at: nowIso() },
+      { id: 'role_staff', name: 'Staff', description: 'Limited staff access', created_at: nowIso() },
     ],
     admin_permissions: [],
     admin_role_permissions: [],
@@ -1069,24 +1218,36 @@ const buildDefaultDb = () => {
         role_id: 'role_host',
         created_at: nowIso(),
       },
+      {
+        id: 'aur_host_lead',
+        user_id: DEFAULT_HOST_LEAD_USER_ID,
+        role_id: 'role_host',
+        created_at: nowIso(),
+      },
+      {
+        id: 'aur_line_cook',
+        user_id: DEFAULT_LINE_COOK_USER_ID,
+        role_id: 'role_staff',
+        created_at: nowIso(),
+      },
+      {
+        id: 'aur_bartender',
+        user_id: DEFAULT_BARTENDER_USER_ID,
+        role_id: 'role_staff',
+        created_at: nowIso(),
+      },
+      {
+        id: 'aur_server',
+        user_id: DEFAULT_SERVER_USER_ID,
+        role_id: 'role_staff',
+        created_at: nowIso(),
+      },
     ],
+    team_members: defaultTeamMembers(),
   };
 };
 
-const defaultUsers = () => [
-  {
-    id: DEFAULT_ADMIN_USER_ID,
-    email: DEFAULT_ADMIN_EMAIL,
-    password: DEFAULT_ADMIN_PASSWORD,
-    created_at: nowIso(),
-  },
-  {
-    id: DEFAULT_HOST_USER_ID,
-    email: DEFAULT_HOST_EMAIL,
-    password: DEFAULT_HOST_PASSWORD,
-    created_at: nowIso(),
-  },
-];
+const defaultUsers = () => defaultLocalUsers();
 
 const storageAvailable = () => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
@@ -2659,6 +2820,38 @@ const migrateDb = (db: PlainObject) => {
     changed = true;
   }
 
+  if (!Array.isArray(db.class_sessions)) {
+    db.class_sessions = [];
+    changed = true;
+  }
+
+  if (Array.isArray(db.events) && Array.isArray(db.class_sessions)) {
+    db.events
+      .filter((event: PlainObject) => event.booking_type === 'class')
+      .forEach((event: PlainObject) => {
+        const hasBaseSession = db.class_sessions.some(
+          (session: PlainObject) =>
+            session.event_id === event.id &&
+            session.class_date === event.date &&
+            session.class_time === event.time,
+        );
+
+        if (hasBaseSession) return;
+
+        db.class_sessions.push({
+          id: createId('class_session'),
+          event_id: event.id,
+          class_date: event.date,
+          class_time: event.time,
+          capacity_override: event.booking_capacity ?? null,
+          minimum_override: event.booking_minimum ?? 1,
+          active: true,
+          created_at: nowIso(),
+        });
+        changed = true;
+      });
+  }
+
   if (Array.isArray(db.reservations)) {
     db.reservations = db.reservations.map((reservation: PlainObject) => {
       if (reservation.status) return reservation;
@@ -2682,13 +2875,48 @@ const migrateDb = (db: PlainObject) => {
   }
 
   if (Array.isArray(db.class_bookings)) {
+    const sessionByScheduleKey = new Map<string, PlainObject>();
+    if (Array.isArray(db.class_sessions)) {
+      db.class_sessions.forEach((session: PlainObject) => {
+        const key = `${session.event_id || ''}::${session.class_date || ''}::${session.class_time || ''}`;
+        sessionByScheduleKey.set(key, session);
+      });
+    }
+
     db.class_bookings = db.class_bookings.map((booking: PlainObject) => {
-      if (booking.status) return booking;
-      changed = true;
-      return {
-        ...booking,
-        status: 'pending',
-      };
+      const nextBooking = { ...booking };
+
+      if (!nextBooking.status) {
+        nextBooking.status = 'pending';
+        changed = true;
+      }
+
+      if (!nextBooking.class_session_id && nextBooking.event_id && nextBooking.class_date && nextBooking.class_time) {
+        const scheduleKey = `${nextBooking.event_id}::${nextBooking.class_date}::${nextBooking.class_time}`;
+        const matchingSession = sessionByScheduleKey.get(scheduleKey);
+        if (matchingSession?.id) {
+          nextBooking.class_session_id = matchingSession.id;
+          changed = true;
+        }
+      }
+
+      if (nextBooking.class_session_id && (!nextBooking.class_date || !nextBooking.class_time)) {
+        const matchingSession = Array.isArray(db.class_sessions)
+          ? db.class_sessions.find((session: PlainObject) => session.id === nextBooking.class_session_id)
+          : null;
+        if (matchingSession) {
+          if (!nextBooking.class_date) {
+            nextBooking.class_date = matchingSession.class_date;
+            changed = true;
+          }
+          if (!nextBooking.class_time) {
+            nextBooking.class_time = matchingSession.class_time;
+            changed = true;
+          }
+        }
+      }
+
+      return nextBooking;
     });
   }
 
@@ -2718,27 +2946,12 @@ const getUserByIdentity = (users: PlainObject[], userId: string, email: string) 
 const ensureDefaultUsers = (users: PlainObject[]) => {
   let changed = false;
 
-  const adminUser = getUserByIdentity(users, DEFAULT_ADMIN_USER_ID, DEFAULT_ADMIN_EMAIL);
-  if (!adminUser) {
-    users.push({
-      id: DEFAULT_ADMIN_USER_ID,
-      email: DEFAULT_ADMIN_EMAIL,
-      password: DEFAULT_ADMIN_PASSWORD,
-      created_at: nowIso(),
-    });
+  defaultLocalUsers().forEach((defaultUser) => {
+    const existing = getUserByIdentity(users, defaultUser.id, defaultUser.email);
+    if (existing) return;
+    users.push(defaultUser);
     changed = true;
-  }
-
-  const hostUser = getUserByIdentity(users, DEFAULT_HOST_USER_ID, DEFAULT_HOST_EMAIL);
-  if (!hostUser) {
-    users.push({
-      id: DEFAULT_HOST_USER_ID,
-      email: DEFAULT_HOST_EMAIL,
-      password: DEFAULT_HOST_PASSWORD,
-      created_at: nowIso(),
-    });
-    changed = true;
-  }
+  });
 
   return changed;
 };
@@ -2789,6 +3002,70 @@ const ensureUserRoleLink = (db: PlainObject, userId: string, roleId: string) => 
   return true;
 };
 
+const ensureTeamMembers = (db: PlainObject, users: PlainObject[]) => {
+  let changed = false;
+
+  if (!Array.isArray(db.team_members)) {
+    db.team_members = [];
+    changed = true;
+  }
+
+  const userEmailById = users.reduce((accumulator, user) => {
+    if (!user?.id) return accumulator;
+    accumulator[user.id] = String(user.email || '');
+    return accumulator;
+  }, {} as Record<string, string>);
+
+  defaultTeamMembers().forEach((defaultMember) => {
+    const existing = db.team_members.find((member: PlainObject) => member.user_id === defaultMember.user_id);
+    if (!existing) {
+      db.team_members.push({
+        ...defaultMember,
+        email: userEmailById[defaultMember.user_id] || defaultMember.email,
+      });
+      changed = true;
+      return;
+    }
+
+    if (!existing.email && userEmailById[defaultMember.user_id]) {
+      existing.email = userEmailById[defaultMember.user_id];
+      changed = true;
+    }
+
+    if (existing.active === undefined) {
+      existing.active = true;
+      changed = true;
+    }
+
+    if (existing.can_view_reservations === undefined) {
+      existing.can_view_reservations = Boolean(defaultMember.can_view_reservations);
+      changed = true;
+    }
+    if (existing.can_view_events_parties === undefined) {
+      existing.can_view_events_parties = Boolean(defaultMember.can_view_events_parties);
+      changed = true;
+    }
+    if (existing.can_view_classes === undefined) {
+      existing.can_view_classes = Boolean(defaultMember.can_view_classes);
+      changed = true;
+    }
+    if (!existing.portal) {
+      existing.portal = defaultMember.portal;
+      changed = true;
+    }
+    if (!existing.name) {
+      existing.name = defaultMember.name;
+      changed = true;
+    }
+    if (!existing.title) {
+      existing.title = defaultMember.title;
+      changed = true;
+    }
+  });
+
+  return changed;
+};
+
 const ensureRoleAssignments = (db: PlainObject, users: PlainObject[]) => {
   let changed = false;
 
@@ -2801,6 +3078,9 @@ const ensureRoleAssignments = (db: PlainObject, users: PlainObject[]) => {
   if (ensureRole(db, { id: 'role_host', name: 'Host', description: 'Reservations, events, and classes BOH access' })) {
     changed = true;
   }
+  if (ensureRole(db, { id: 'role_staff', name: 'Staff', description: 'Limited staff access' })) {
+    changed = true;
+  }
 
   const adminUser = getUserByIdentity(users, DEFAULT_ADMIN_USER_ID, DEFAULT_ADMIN_EMAIL);
   if (adminUser && ensureUserRoleLink(db, adminUser.id, 'role_owner')) {
@@ -2809,6 +3089,30 @@ const ensureRoleAssignments = (db: PlainObject, users: PlainObject[]) => {
 
   const hostUser = getUserByIdentity(users, DEFAULT_HOST_USER_ID, DEFAULT_HOST_EMAIL);
   if (hostUser && ensureUserRoleLink(db, hostUser.id, 'role_host')) {
+    changed = true;
+  }
+
+  const hostLeadUser = getUserByIdentity(users, DEFAULT_HOST_LEAD_USER_ID, DEFAULT_HOST_LEAD_EMAIL);
+  if (hostLeadUser && ensureUserRoleLink(db, hostLeadUser.id, 'role_host')) {
+    changed = true;
+  }
+
+  const lineCookUser = getUserByIdentity(users, DEFAULT_LINE_COOK_USER_ID, DEFAULT_LINE_COOK_EMAIL);
+  if (lineCookUser && ensureUserRoleLink(db, lineCookUser.id, 'role_staff')) {
+    changed = true;
+  }
+
+  const bartenderUser = getUserByIdentity(users, DEFAULT_BARTENDER_USER_ID, DEFAULT_BARTENDER_EMAIL);
+  if (bartenderUser && ensureUserRoleLink(db, bartenderUser.id, 'role_staff')) {
+    changed = true;
+  }
+
+  const serverUser = getUserByIdentity(users, DEFAULT_SERVER_USER_ID, DEFAULT_SERVER_EMAIL);
+  if (serverUser && ensureUserRoleLink(db, serverUser.id, 'role_staff')) {
+    changed = true;
+  }
+
+  if (ensureTeamMembers(db, users)) {
     changed = true;
   }
 

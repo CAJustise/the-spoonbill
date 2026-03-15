@@ -4,7 +4,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import logoNavy from '../../assets/SpoonbillLogoDark.png';
-import { canAccessPortal, deriveRoleResolution, getRoleIdsForUser, type BohPortal } from '../../lib/bohRoles';
+import {
+  canAccessPortal,
+  getRoleIdsForUser,
+  getTeamMemberForUser,
+  resolveDefaultPortal,
+  type BohPortal,
+} from '../../lib/bohRoles';
 
 interface LoginPageProps {
   portal?: BohPortal;
@@ -32,23 +38,36 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
 
       if (data.session) {
         const roleIds = await getRoleIdsForUser(data.session.user.id);
-        const roleResolution = deriveRoleResolution(roleIds);
+        const teamMember = await getTeamMemberForUser(data.session.user.id);
 
-        if (!canAccessPortal(roleIds, portal)) {
+        if (!canAccessPortal(roleIds, portal, teamMember)) {
           await supabase.auth.signOut();
           throw new Error(
             portal === 'admin'
-              ? 'This account does not have Admin access. Please use Host Login.'
-              : 'This account does not have BOH access.',
+              ? 'This account does not have Admin access.'
+              : portal === 'host'
+                ? 'This account does not have Host access. Try Staff Login.'
+                : 'This account does not have Staff access.',
           );
         }
 
-        if (portal === 'host' && roleResolution.isHost && !roleResolution.isAdmin) {
+        if (portal === 'admin') {
+          navigate('/admin');
+          return;
+        }
+
+        if (portal === 'host') {
           navigate('/host');
           return;
         }
 
-        navigate('/admin');
+        const defaultPortal = resolveDefaultPortal(roleIds, teamMember);
+        if (defaultPortal === 'host') {
+          navigate('/host');
+          return;
+        }
+
+        navigate('/staff');
         return;
       }
 
@@ -77,7 +96,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mt-6 text-center text-3xl font-display font-bold text-gray-900"
         >
-          {portal === 'host' ? 'Host Login' : 'Admin Login'}
+          {portal === 'host' ? 'Host Login' : portal === 'staff' ? 'Staff Login' : 'Admin Login'}
         </motion.h2>
       </div>
 
@@ -166,12 +185,31 @@ const LoginPage: React.FC<LoginPageProps> = ({ portal = 'admin' }) => {
                 <Link to="/admin/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
                   Admin Login
                 </Link>
+                {' '}or{' '}
+                <Link to="/staff/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
+                  Staff Login
+                </Link>
+              </p>
+            ) : portal === 'staff' ? (
+              <p className="text-sm text-gray-600">
+                Need host tools?{' '}
+                <Link to="/host/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
+                  Host Login
+                </Link>
+                {' '}or{' '}
+                <Link to="/admin/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
+                  Admin Login
+                </Link>
               </p>
             ) : (
               <p className="text-sm text-gray-600">
-                Host team access?{' '}
+                Host or staff access?{' '}
                 <Link to="/host/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
                   Host Login
+                </Link>
+                {' '}or{' '}
+                <Link to="/staff/login" className="text-ocean-600 hover:text-ocean-700 font-medium">
+                  Staff Login
                 </Link>
               </p>
             )}
