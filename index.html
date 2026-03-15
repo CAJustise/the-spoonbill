@@ -3,29 +3,168 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Spoonbill | Investment Pitch</title>
+  <title>The Spoonbill Lounge</title>
+  <meta name="description" content="Pacific Rim cuisine, elevated cocktails, and immersive hospitality at The Spoonbill Lounge.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <main class="container">
-    <p class="eyebrow">Investor Preview</p>
-    <h1>The Spoonbill</h1>
-    <p class="subtitle">A compelling restaurant concept built for scale, margin, and market buzz.</p>
+<body class="site-page">
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="#top" class="brand-link" aria-label="The Spoonbill Lounge home">
+        <img src="assets/spoonbill-logo-light.png" alt="The Spoonbill Lounge" class="brand-logo">
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#menu">Menu</a>
+        <a href="#booking">Book</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
 
-    <section class="card-grid">
-      <article class="card">
-        <h2>Opportunity</h2>
-        <p>Summarize the market gap, neighborhood fit, and customer demand signals.</p>
-      </article>
-      <article class="card">
-        <h2>Unit Economics</h2>
-        <p>Outline check averages, COGS targets, labor model, and expected cash-on-cash timeline.</p>
-      </article>
-      <article class="card">
-        <h2>Growth Plan</h2>
-        <p>Describe rollout milestones, brand moat, and capital allocation by phase.</p>
-      </article>
+  <main id="top">
+    <section class="hero" aria-label="Welcome to The Spoonbill Lounge">
+      <div class="hero-media" role="img" aria-label="The Spoonbill Lounge exterior"></div>
+      <div class="hero-overlay"></div>
+      <div class="container hero-content">
+        <p class="eyebrow">Redondo Beach</p>
+        <h1>The Spoonbill Lounge</h1>
+        <p class="hero-copy">Pacific Rim cuisine, craft cocktails, and curated tastings in a tropical modern escape.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#booking">Make a Reservation</a>
+          <a class="button button-ghost" href="#menu">Explore Menu</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="menu" class="section menu-section">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Menu</p>
+          <h2>Split by Experience</h2>
+          <p>Everything is organized exactly as requested: Spirits, Cocktails, Cuisine, and Tastings.</p>
+        </div>
+        <div class="menu-tabs" role="tablist" aria-label="Menu categories">
+          <button class="tab-btn active" type="button" data-category="Spirits">Spirits</button>
+          <button class="tab-btn" type="button" data-category="Cocktails">Cocktails</button>
+          <button class="tab-btn" type="button" data-category="Cuisine">Cuisine</button>
+          <button class="tab-btn" type="button" data-category="Tastings">Tastings</button>
+        </div>
+        <div id="menu-items" class="menu-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section id="booking" class="section booking-section">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Bookings</p>
+          <h2>Reservations, Classes, Private Events</h2>
+          <p>Requests submit directly into BOH for approval and scheduling.</p>
+        </div>
+
+        <div class="booking-grid">
+          <article class="booking-card">
+            <h3>Make a Reservation</h3>
+            <form id="reservation-form" class="stack-form">
+              <label>Name<input name="name" required></label>
+              <label>Phone<input name="phone" required></label>
+              <label>Email<input name="email" type="email" required></label>
+              <div class="form-row">
+                <label>Party Size<input name="partySize" type="number" min="1" max="24" required></label>
+                <label>Date<input name="date" type="date" required></label>
+              </div>
+              <label>Time<input name="time" type="time" required></label>
+              <label>Notes<textarea name="notes" rows="3" placeholder="Allergies, celebrations, seating preferences"></textarea></label>
+              <button type="submit" class="button button-primary full">Submit Reservation</button>
+              <p class="form-feedback" data-feedback="reservation"></p>
+            </form>
+          </article>
+
+          <article class="booking-card">
+            <h3>Schedule a Class</h3>
+            <form id="class-request-form" class="stack-form">
+              <label>Name<input name="name" required></label>
+              <label>Email<input name="email" type="email" required></label>
+              <label>Phone<input name="phone" required></label>
+              <label>Class Interest
+                <select name="classType" required>
+                  <option value="">Select...</option>
+                  <option>Cocktail Masterclass</option>
+                  <option>Whisky Tasting</option>
+                  <option>Pacific Rim Cooking</option>
+                  <option>Wine Pairing</option>
+                </select>
+              </label>
+              <div class="form-row">
+                <label>Preferred Date<input name="date" type="date" required></label>
+                <label>Guests<input name="guests" type="number" min="1" max="20" required></label>
+              </div>
+              <label>Notes<textarea name="notes" rows="3" placeholder="Skill level, goals, dietary details"></textarea></label>
+              <button type="submit" class="button button-primary full">Submit Class Request</button>
+              <p class="form-feedback" data-feedback="class"></p>
+            </form>
+          </article>
+
+          <article class="booking-card">
+            <h3>Book a Private Event</h3>
+            <form id="private-event-form" class="stack-form">
+              <label>Primary Contact<input name="name" required></label>
+              <label>Email<input name="email" type="email" required></label>
+              <label>Phone<input name="phone" required></label>
+              <label>Event Type
+                <select name="eventType" required>
+                  <option value="">Select...</option>
+                  <option>Birthday</option>
+                  <option>Corporate</option>
+                  <option>Anniversary</option>
+                  <option>Buyout Inquiry</option>
+                </select>
+              </label>
+              <div class="form-row">
+                <label>Date<input name="date" type="date" required></label>
+                <label>Guests<input name="guests" type="number" min="8" max="220" required></label>
+              </div>
+              <label>Start Time<input name="startTime" type="time" required></label>
+              <label>Notes<textarea name="notes" rows="3" placeholder="Budget, AV, food service, seating"></textarea></label>
+              <button type="submit" class="button button-primary full">Submit Event Request</button>
+              <p class="form-feedback" data-feedback="event"></p>
+            </form>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact-section">
+      <div class="container contact-shell">
+        <div>
+          <p class="eyebrow">Contact</p>
+          <h2>Visit The Spoonbill Lounge</h2>
+          <p id="venue-address">Redondo Beach, CA</p>
+          <p><a id="venue-phone" href="tel:+13105550147">(310) 555-0147</a></p>
+          <p><a id="venue-email" href="mailto:hello@spoonbilllounge.com">hello@spoonbilllounge.com</a></p>
+        </div>
+        <div class="contact-note">
+          <h3>BOH + Admin Access</h3>
+          <p>Use the floating Spoonbill logo in the bottom-right corner to reach BOH login and management tools.</p>
+        </div>
+      </div>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <p>© <span id="year"></span> The Spoonbill Lounge</p>
+      <p>Built for FOH + BOH coordination</p>
+    </div>
+  </footer>
+
+  <a class="floating-admin-logo" href="admin-login.html" aria-label="Open admin login and BOH management">
+    <img src="assets/spoonbill-logo-dark.png" alt="Spoonbill admin login">
+  </a>
+
+  <script src="data.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>

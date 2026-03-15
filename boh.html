@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spoonbill BOH Suite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="boh-page">
+  <div class="boh-shell">
+    <aside class="boh-sidebar">
+      <img src="assets/spoonbill-logo-light.png" alt="Spoonbill" class="boh-logo">
+      <nav class="boh-nav" aria-label="BOH navigation">
+        <button class="boh-nav-btn active" data-panel="dashboard">Dashboard</button>
+        <button class="boh-nav-btn" data-panel="menu">Menu</button>
+        <button class="boh-nav-btn" data-panel="reservations">Reservations</button>
+        <button class="boh-nav-btn" data-panel="classes">Classes</button>
+        <button class="boh-nav-btn" data-panel="events">Private Events</button>
+        <button class="boh-nav-btn" data-panel="team">Team Members</button>
+        <button class="boh-nav-btn" data-panel="schedules">Schedules</button>
+        <button class="boh-nav-btn" data-panel="settings">Settings</button>
+      </nav>
+    </aside>
+
+    <main class="boh-main">
+      <header class="boh-header">
+        <div>
+          <p class="eyebrow">Back Of House</p>
+          <h1>Spoonbill Operations Suite</h1>
+        </div>
+        <div class="boh-header-actions">
+          <a class="button button-ghost" href="index.html">View Public Site</a>
+          <button id="logout-btn" class="button button-danger" type="button">Logout</button>
+        </div>
+      </header>
+
+      <section class="boh-panel active" id="panel-dashboard">
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p>Pending Reservations</p>
+            <h2 id="metric-reservations">0</h2>
+          </article>
+          <article class="stat-card">
+            <p>Upcoming Classes</p>
+            <h2 id="metric-classes">0</h2>
+          </article>
+          <article class="stat-card">
+            <p>Open Event Leads</p>
+            <h2 id="metric-events">0</h2>
+          </article>
+          <article class="stat-card">
+            <p>Team Members</p>
+            <h2 id="metric-team">0</h2>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="boh-card">
+            <h3>Today at a Glance</h3>
+            <ul id="today-glance" class="summary-list"></ul>
+          </article>
+          <article class="boh-card">
+            <h3>Menu Category Counts</h3>
+            <ul id="menu-summary" class="summary-list"></ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="boh-panel" id="panel-menu">
+        <div class="panel-head">
+          <h2>Menu Management</h2>
+          <p>Maintain items in Spirits, Cocktails, Cuisine, and Tastings.</p>
+        </div>
+        <article class="boh-card">
+          <form id="menu-form" class="stack-form">
+            <div class="form-row">
+              <label>Name<input name="name" required></label>
+              <label>Category
+                <select name="category" required>
+                  <option>Spirits</option>
+                  <option>Cocktails</option>
+                  <option>Cuisine</option>
+                  <option>Tastings</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Price<input name="price" type="number" min="0" step="0.01" required></label>
+              <label>Status
+                <select name="active">
+                  <option value="true">Active</option>
+                  <option value="false">Hidden</option>
+                </select>
+              </label>
+            </div>
+            <label>Description<textarea name="description" rows="3" required></textarea></label>
+            <button class="button button-primary" type="submit">Add Menu Item</button>
+          </form>
+        </article>
+
+        <article class="boh-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="menu-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="boh-panel" id="panel-reservations">
+        <div class="panel-head">
+          <h2>Reservation Queue</h2>
+          <p>Track guest requests, confirmations, and service notes.</p>
+        </div>
+        <article class="boh-card">
+          <form id="reservation-admin-form" class="stack-form">
+            <div class="form-row">
+              <label>Name<input name="name" required></label>
+              <label>Party<input name="partySize" type="number" min="1" required></label>
+            </div>
+            <div class="form-row">
+              <label>Date<input name="date" type="date" required></label>
+              <label>Time<input name="time" type="time" required></label>
+            </div>
+            <div class="form-row">
+              <label>Phone<input name="phone" required></label>
+              <label>Email<input name="email" type="email" required></label>
+            </div>
+            <label>Notes<textarea name="notes" rows="2"></textarea></label>
+            <button class="button button-primary" type="submit">Add Reservation</button>
+          </form>
+        </article>
+
+        <article class="boh-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Guest</th>
+                  <th>When</th>
+                  <th>Party</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reservations-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="boh-panel" id="panel-classes">
+        <div class="panel-head">
+          <h2>Class Scheduling</h2>
+          <p>Schedule public or private classes and manage enrollments.</p>
+        </div>
+        <article class="boh-card">
+          <form id="classes-form" class="stack-form">
+            <div class="form-row">
+              <label>Class Title<input name="title" required></label>
+              <label>Type
+                <select name="classType" required>
+                  <option>Cocktail Masterclass</option>
+                  <option>Whisky Tasting</option>
+                  <option>Pacific Rim Cooking</option>
+                  <option>Wine Pairing</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Date<input name="date" type="date" required></label>
+              <label>Instructor<input name="instructor" required></label>
+            </div>
+            <div class="form-row">
+              <label>Start<input name="startTime" type="time" required></label>
+              <label>End<input name="endTime" type="time" required></label>
+            </div>
+            <div class="form-row">
+              <label>Capacity<input name="capacity" type="number" min="1" required></label>
+              <label>Price<input name="price" type="number" min="0" step="0.01" required></label>
+            </div>
+            <label>Notes<textarea name="notes" rows="2"></textarea></label>
+            <button class="button button-primary" type="submit">Schedule Class</button>
+          </form>
+        </article>
+
+        <article class="boh-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th>Date</th>
+                  <th>Instructor</th>
+                  <th>Capacity</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="classes-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="boh-panel" id="panel-events">
+        <div class="panel-head">
+          <h2>Private Events</h2>
+          <p>Manage inquiries, event booking, and confirmation status.</p>
+        </div>
+        <article class="boh-card">
+          <form id="events-form" class="stack-form">
+            <div class="form-row">
+              <label>Contact<input name="name" required></label>
+              <label>Event Type<input name="eventType" required></label>
+            </div>
+            <div class="form-row">
+              <label>Date<input name="date" type="date" required></label>
+              <label>Guests<input name="guests" type="number" min="2" required></label>
+            </div>
+            <div class="form-row">
+              <label>Start<input name="startTime" type="time" required></label>
+              <label>End<input name="endTime" type="time"></label>
+            </div>
+            <div class="form-row">
+              <label>Phone<input name="phone" required></label>
+              <label>Email<input name="email" type="email" required></label>
+            </div>
+            <label>Notes<textarea name="notes" rows="2"></textarea></label>
+            <button class="button button-primary" type="submit">Add Event Lead</button>
+          </form>
+        </article>
+
+        <article class="boh-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Contact</th>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Guests</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="events-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="boh-panel" id="panel-team">
+        <div class="panel-head">
+          <h2>Team Members</h2>
+          <p>Maintain staffing roster with role, contact, and status.</p>
+        </div>
+        <article class="boh-card">
+          <form id="team-form" class="stack-form">
+            <div class="form-row">
+              <label>Name<input name="name" required></label>
+              <label>Role<input name="role" required></label>
+            </div>
+            <div class="form-row">
+              <label>Email<input name="email" type="email"></label>
+              <label>Phone<input name="phone"></label>
+            </div>
+            <div class="form-row">
+              <label>Start Date<input name="startDate" type="date"></label>
+              <label>Hourly Rate<input name="rate" type="number" min="0" step="0.01"></label>
+            </div>
+            <label>Status
+              <select name="status">
+                <option>Active</option>
+                <option>On Leave</option>
+                <option>Inactive</option>
+              </select>
+            </label>
+            <button class="button button-primary" type="submit">Add Team Member</button>
+          </form>
+        </article>
+
+        <article class="boh-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Contact</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="team-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="boh-panel" id="panel-schedules">
+        <div class="panel-head">
+          <h2>Team Schedules</h2>
+          <p>Assign shifts, stations, and coverage status.</p>
+        </div>
+        <article class="boh-card">
+          <form id="schedule-form" class="stack-form">
+            <div class="form-row">
+              <label>Team Member
+                <select name="memberId" id="schedule-member" required></select>
+              </label>
+              <label>Shift Type
+                <select name="shift" required>
+                  <option>Opening</option>
+                  <option>Mid</option>
+                  <option>Closing</option>
+                  <option>Event</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>Date<input name="date" type="date" required></label>
+              <label>Station<input name="station" placeholder="Bar, Floor, Kitchen, Host" required></label>
+            </div>
+            <div class="form-row">
+              <label>Start<input name="start" type="time" required></label>
+              <label>End<input name="end" type="time" required></label>
+            </div>
+            <label>Notes<textarea name="notes" rows="2"></textarea></label>
+            <button class="button button-primary" type="submit">Add Schedule Block</button>
+          </form>
+        </article>
+
+        <article class="boh-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Team Member</th>
+                  <th>Date</th>
+                  <th>Shift</th>
+                  <th>Hours</th>
+                  <th>Station</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="schedules-table-body"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="boh-panel" id="panel-settings">
+        <div class="panel-head">
+          <h2>Admin & Venue Settings</h2>
+          <p>Update login password, venue details, and data backups.</p>
+        </div>
+
+        <div class="settings-grid">
+          <article class="boh-card">
+            <h3>Change Admin Password</h3>
+            <form id="admin-password-form" class="stack-form">
+              <label>Current Password<input name="currentPassword" type="password" required></label>
+              <label>New Password<input name="newPassword" type="password" minlength="6" required></label>
+              <label>Confirm New Password<input name="confirmPassword" type="password" minlength="6" required></label>
+              <button class="button button-primary" type="submit">Update Password</button>
+            </form>
+          </article>
+
+          <article class="boh-card">
+            <h3>Venue Details</h3>
+            <form id="venue-settings-form" class="stack-form">
+              <label>Venue Name<input name="venueName" required></label>
+              <label>Phone<input name="phone" required></label>
+              <label>Email<input name="email" type="email" required></label>
+              <label>Address<input name="address" required></label>
+              <button class="button button-primary" type="submit">Save Venue Settings</button>
+            </form>
+          </article>
+
+          <article class="boh-card">
+            <h3>Data Backup</h3>
+            <div class="stack-actions">
+              <button id="export-json-btn" class="button button-ghost" type="button">Export BOH Data (JSON)</button>
+              <label class="file-label">Import BOH Data (JSON)
+                <input id="import-json-input" type="file" accept="application/json">
+              </label>
+              <p class="muted">Import overwrites current local BOH data for this browser.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <p id="boh-status" class="boh-status" aria-live="polite"></p>
+    </main>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="boh.js"></script>
+</body>
+</html>
