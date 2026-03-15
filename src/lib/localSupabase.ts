@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 
+import { CODA_FOOD_ITEM_SEEDS, CUISINE_SUBCATEGORY_SEEDS } from './codaFoodSeeds';
+
 type PlainObject = Record<string, any>;
 
 const DB_KEY = 'spoonbill.local.db.v1';
@@ -798,6 +800,8 @@ const normalizeDrinkName = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 const normalizeDrinkKey = (name: string, price: number | null | undefined) =>
   `${normalizeDrinkName(name).toLowerCase()}|${price ?? ''}`;
+
+const normalizeFoodName = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 const CODA_SIGNATURE_DRINKS = new Set([
   'Aloha Spirit Mai Tai',
@@ -1608,6 +1612,248 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
   return changed;
 };
 
+const ensureCodaFoodImport = (db: PlainObject) => {
+  if (!Array.isArray(db.menu_categories) || !Array.isArray(db.menu_items)) {
+    return false;
+  }
+
+  let changed = false;
+  const now = nowIso();
+  const categories = db.menu_categories as PlainObject[];
+  const items = db.menu_items as PlainObject[];
+
+  const ensureCategory = (config: {
+    id: string;
+    name: string;
+    parent_id: string | null;
+    display_order: number;
+  }) => {
+    let category =
+      categories.find((entry) => entry.id === config.id) ||
+      categories.find((entry) => entry.menu_type === 'food' && entry.name === config.name);
+
+    if (!category) {
+      category = {
+        id: config.id,
+        name: config.name,
+        menu_type: 'food',
+        display_order: config.display_order,
+        parent_id: config.parent_id,
+        active: true,
+        created_at: now,
+        updated_at: now,
+      };
+      categories.push(category);
+      changed = true;
+      return category.id;
+    }
+
+    if (category.menu_type !== 'food') {
+      category.menu_type = 'food';
+      changed = true;
+    }
+    if (category.name !== config.name) {
+      category.name = config.name;
+      changed = true;
+    }
+    if (category.parent_id !== config.parent_id) {
+      category.parent_id = config.parent_id;
+      changed = true;
+    }
+    if (category.display_order !== config.display_order) {
+      category.display_order = config.display_order;
+      changed = true;
+    }
+    if (category.active !== true) {
+      category.active = true;
+      changed = true;
+    }
+    if (!category.created_at) {
+      category.created_at = now;
+      changed = true;
+    }
+    if (!category.updated_at) {
+      category.updated_at = now;
+      changed = true;
+    }
+
+    return category.id;
+  };
+
+  const cuisineRootCategoryId = ensureCategory({
+    id: 'cat_cuisine',
+    name: 'Cuisine',
+    parent_id: null,
+    display_order: 1,
+  });
+
+  const cuisineSubcategoryIds = new Map<string, string>();
+  CUISINE_SUBCATEGORY_SEEDS.forEach((subcategory, index) => {
+    const ensuredId = ensureCategory({
+      id: subcategory.id,
+      name: subcategory.name,
+      parent_id: cuisineRootCategoryId,
+      display_order: index + 1,
+    });
+    cuisineSubcategoryIds.set(subcategory.id, ensuredId);
+  });
+
+  const legacyCategoryTargets: Record<string, string> = {
+    'Small Plate': cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    'Small Plates': cuisineSubcategoryIds.get('cat_food_small_plates') || 'cat_food_small_plates',
+    Entrees: cuisineSubcategoryIds.get('cat_food_main') || 'cat_food_main',
+    Bowl: cuisineSubcategoryIds.get('cat_food_bowls') || 'cat_food_bowls',
+    Bowls: cuisineSubcategoryIds.get('cat_food_bowls') || 'cat_food_bowls',
+    Sharable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    Shareable: cuisineSubcategoryIds.get('cat_food_shareable') || 'cat_food_shareable',
+    Desserts: cuisineSubcategoryIds.get('cat_food_dessert') || 'cat_food_dessert',
+    'Main - Sea': cuisineSubcategoryIds.get('cat_food_main_sea') || 'cat_food_main_sea',
+    'Main - Land': cuisineSubcategoryIds.get('cat_food_main_land') || 'cat_food_main_land',
+    'Raw Bar': cuisineSubcategoryIds.get('cat_food_raw_bar') || 'cat_food_raw_bar',
+    Salads: cuisineSubcategoryIds.get('cat_food_salads') || 'cat_food_salads',
+  };
+
+  for (const category of categories) {
+    if (category.menu_type !== 'food') continue;
+    const targetCategoryId = legacyCategoryTargets[category.name];
+    if (!targetCategoryId || category.id === targetCategoryId) continue;
+
+    for (const item of items) {
+      if (item.category_id === category.id) {
+        item.category_id = targetCategoryId;
+        item.updated_at = now;
+        changed = true;
+      }
+    }
+
+    if (category.active !== false) {
+      category.active = false;
+      category.updated_at = now;
+      changed = true;
+    }
+  }
+
+  const existingFoodByName = new Map<string, PlainObject>();
+  items
+    .filter((item) => item.menu_type === 'food')
+    .forEach((item) => {
+      const normalizedName = normalizeFoodName(String(item.name || '')).toLowerCase();
+      if (!normalizedName || existingFoodByName.has(normalizedName)) return;
+      existingFoodByName.set(normalizedName, item);
+    });
+
+  const legacyCategoryIds = new Set<string>([
+    'cat_small_plates',
+    'cat_entrees',
+  ]);
+
+  for (const imported of CODA_FOOD_ITEM_SEEDS) {
+    const name = normalizeFoodName(imported.name);
+    if (!name) continue;
+
+    const importedPrice =
+      typeof imported.price === 'number' && Number.isFinite(imported.price)
+        ? imported.price
+        : null;
+    const importedDescription =
+      typeof imported.description === 'string' && imported.description.trim()
+        ? imported.description.trim()
+        : null;
+    const categoryId =
+      cuisineSubcategoryIds.get(imported.category_id) || imported.category_id;
+    const dietText = `${name} ${importedDescription || ''}`.toLowerCase();
+    const inferredVegan = /\bvegan\b/.test(dietText);
+    const inferredVegetarian = inferredVegan || /\bvegetarian\b/.test(dietText);
+
+    let existing = existingFoodByName.get(name.toLowerCase());
+
+    if (!existing) {
+      existing = {
+        id: `item_${slug(`food-${name}`)}`,
+        name,
+        description: importedDescription,
+        price: importedPrice,
+        bottle_price: null,
+        image_url: null,
+        menu_type: 'food',
+        show_price: true,
+        show_description: true,
+        active: true,
+        ingredients: null,
+        allergens: null,
+        is_vegetarian: inferredVegetarian,
+        is_vegan: inferredVegan,
+        is_gluten_free: false,
+        spice_level: null,
+        portion_size: null,
+        serves: null,
+        alcohol_content: null,
+        garnish: null,
+        category_id: categoryId,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(existing);
+      existingFoodByName.set(name.toLowerCase(), existing);
+      changed = true;
+      continue;
+    }
+
+    let itemChanged = false;
+    const ensureField = (field: string, value: any) => {
+      const current = existing[field];
+      if (current === undefined || current === null || current === '') {
+        existing[field] = value;
+        itemChanged = true;
+      }
+    };
+
+    ensureField('menu_type', 'food');
+    ensureField('active', true);
+    ensureField('show_price', true);
+    ensureField('show_description', true);
+    ensureField('name', name);
+    ensureField('description', importedDescription);
+    ensureField('price', importedPrice);
+    ensureField('category_id', categoryId);
+    ensureField('ingredients', null);
+    ensureField('allergens', null);
+    ensureField('spice_level', null);
+    ensureField('portion_size', null);
+    ensureField('serves', null);
+    ensureField('is_vegetarian', inferredVegetarian);
+    ensureField('is_vegan', inferredVegan);
+    ensureField('is_gluten_free', false);
+
+    if (legacyCategoryIds.has(existing.category_id)) {
+      existing.category_id = categoryId;
+      itemChanged = true;
+    }
+
+    if (!existing.created_at) {
+      existing.created_at = now;
+      itemChanged = true;
+    }
+    if (itemChanged) {
+      existing.updated_at = now;
+      changed = true;
+    }
+  }
+
+  for (const item of items) {
+    if (item.menu_type !== 'food') continue;
+    if (item.id === 'item_crudo' || item.id === 'item_short_rib') {
+      if (item.active !== false) {
+        item.active = false;
+        item.updated_at = now;
+        changed = true;
+      }
+    }
+  }
+
+  return changed;
+};
+
 const migrateDb = (db: PlainObject) => {
   let changed = false;
   const eventImageByTitle: Record<string, string> = {
@@ -1681,6 +1927,10 @@ const migrateDb = (db: PlainObject) => {
   }
 
   if (ensureCodaBeverageImport(db)) {
+    changed = true;
+  }
+
+  if (ensureCodaFoodImport(db)) {
     changed = true;
   }
 

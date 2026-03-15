@@ -496,10 +496,13 @@ const MenuContent: React.FC = () => {
     const isCocktailsRoot =
       activeType === 'cocktails' &&
       (category.id === 'cat_cocktails' || category.name.toLowerCase() === 'cocktails');
+    const isCuisineRoot =
+      activeType === 'cuisine' &&
+      (category.id === 'cat_cuisine' || category.name.toLowerCase() === 'cuisine');
 
     return (
       <div key={category.id} id={`category-${category.id}`} className="space-y-8">
-        {!isCocktailsRoot && (
+        {!isCocktailsRoot && !isCuisineRoot && (
           <div className="relative">
             <h3 className="text-2xl font-display font-bold text-ocean-800 pb-3 border-b-2 border-ocean-200">
               {category.name}
@@ -542,6 +545,12 @@ const MenuContent: React.FC = () => {
         rootCategories.find((category) => category.name.toLowerCase() === 'cocktails') ||
         null
       : null;
+  const cuisineRootCategory =
+    activeType === 'cuisine'
+      ? rootCategories.find((category) => category.id === 'cat_cuisine') ||
+        rootCategories.find((category) => category.name.toLowerCase() === 'cuisine') ||
+        null
+      : null;
 
   const navTargets =
     cocktailsRootCategory && activeType === 'cocktails'
@@ -554,6 +563,16 @@ const MenuContent: React.FC = () => {
             id: `subcategory-${subcategory.id}`,
             label: getCategoryNavLabel(subcategory.name),
           }))
+      : cuisineRootCategory && activeType === 'cuisine'
+        ? (cuisineRootCategory.subcategories || [])
+            .filter((subcategory) =>
+              filteredItems.some((item) => item.category_id === subcategory.id),
+            )
+            .sort((a, b) => a.display_order - b.display_order)
+            .map((subcategory) => ({
+              id: `subcategory-${subcategory.id}`,
+              label: subcategory.name,
+            }))
       : rootCategories.map((category) => ({
           id: `category-${category.id}`,
           label: category.name,
