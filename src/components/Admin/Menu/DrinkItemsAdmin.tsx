@@ -689,10 +689,10 @@ Mint leaves"
                 <tr key={item.id} className={!item.active ? 'bg-gray-50' : ''}>
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{item.name}</div>
-                    {item.alcohol_content && (
+                    {Number(item.alcohol_content) > 0 && (
                       <div className="mt-1">
                         <StrengthIndicator
-                          strength={item.alcohol_content}
+                          strength={Number(item.alcohol_content)}
                           className="h-4 w-4"
                         />
                       </div>

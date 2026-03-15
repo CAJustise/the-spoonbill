@@ -42,6 +42,9 @@ interface Category {
 const HIDE_ALCOHOL_CONTENT_CATEGORIES = [
   'Flights',
   'Cocktail Flights',
+  'Zero Proof',
+  'Zero-Proof',
+  'Non-Alcoholic',
   'Beer',
   'Wine',
   'Tiki Classic Flight',
@@ -336,8 +339,19 @@ const MenuContent: React.FC = () => {
     );
   };
 
-  const renderMenuItemCard = (item: MenuItem, options?: { forceAlcoholIndicator?: boolean }) => (
-    <div className="group">
+  const renderMenuItemCard = (item: MenuItem, options?: { forceAlcoholIndicator?: boolean }) => {
+    const parsedAlcoholStrength =
+      item.alcohol_content === null || item.alcohol_content === undefined
+        ? null
+        : Number(item.alcohol_content);
+    const showAlcoholIndicator =
+      parsedAlcoholStrength !== null &&
+      Number.isFinite(parsedAlcoholStrength) &&
+      parsedAlcoholStrength > 0 &&
+      (options?.forceAlcoholIndicator || shouldShowAlcoholContent(item.category));
+
+    return (
+      <div className="group">
       {item.image_url && (
         <div className="relative overflow-hidden rounded-lg">
           <img
@@ -364,10 +378,10 @@ const MenuContent: React.FC = () => {
               {item.description}
             </p>
           )}
-          {item.alcohol_content && (options?.forceAlcoholIndicator || shouldShowAlcoholContent(item.category)) && (
+          {showAlcoholIndicator && (
             <div className="mt-1">
               <StrengthIndicator
-                strength={item.alcohol_content}
+                strength={parsedAlcoholStrength}
                 className="h-6 w-6"
               />
             </div>
@@ -391,8 +405,9 @@ const MenuContent: React.FC = () => {
           Garnished with {item.garnish}
         </p>
       )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   const renderFlightsSubcategory = (subcategory: Category, subcategoryItems: MenuItem[]) => {
     const drinkByName = new Map(

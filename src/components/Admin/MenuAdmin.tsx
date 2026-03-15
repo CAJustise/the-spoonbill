@@ -371,8 +371,8 @@ const MenuAdmin: React.FC = () => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <span className="capitalize">{item.menu_type}</span>
-                  {item.menu_type === 'drinks' && item.alcohol_content && (
-                    <StrengthIndicator strength={item.alcohol_content} className="h-4 w-4" />
+                  {item.menu_type === 'drinks' && Number(item.alcohol_content) > 0 && (
+                    <StrengthIndicator strength={Number(item.alcohol_content)} className="h-4 w-4" />
                   )}
                 </div>
               </td>
