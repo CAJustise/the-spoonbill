@@ -26,6 +26,7 @@ interface MenuItem {
     display_order: number;
     parent_id: string | null;
   } | null;
+  coda_flight_group?: string | null;
 }
 
 interface Category {
@@ -49,6 +50,22 @@ const HIDE_ALCOHOL_CONTENT_CATEGORIES = [
   'Craft Beer',
   'Wine'
 ];
+
+const CATEGORY_NAV_LABELS: Record<string, string> = {
+  'Signature Cocktails': 'Signature Cocktails',
+  'Happy Hour Specials': 'Happy Hour',
+  'Cocktail Flights': 'Flights',
+  'Classic Cocktails': 'Classic Cocktails',
+  'Zero Proof': 'Zero Proof',
+};
+
+const CATEGORY_PILL_LABELS: Record<string, string> = {
+  'Signature Cocktails': 'Signature',
+  'Happy Hour Specials': 'Happy Hour',
+  'Cocktail Flights': 'Flights',
+  'Classic Cocktails': 'Classic',
+  'Zero Proof': 'Zero Proof',
+};
 
 const MenuContent: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -211,8 +228,16 @@ const MenuContent: React.FC = () => {
     return category.menu_type === 'drinks' && isSpiritRootCategory(category);
   });
 
-  const scrollToCategory = (categoryId: string) => {
-    const element = document.getElementById(`category-${categoryId}`);
+  const getCategoryNavLabel = (categoryName: string) =>
+    CATEGORY_NAV_LABELS[categoryName] || categoryName;
+
+  const getCategoryPillLabel = (categoryName: string) =>
+    CATEGORY_PILL_LABELS[categoryName] || categoryName.replace(/\bCocktails?\b/gi, '').replace(/\s+/g, ' ').trim() || categoryName;
+
+  const normalizeMenuName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
     if (!element) return;
 
     const scrollContainer = element.closest('.overflow-y-auto');
@@ -262,6 +287,144 @@ const MenuContent: React.FC = () => {
     );
   };
 
+  const renderMenuItemCard = (item: MenuItem, options?: { forceAlcoholIndicator?: boolean }) => (
+    <div className="group">
+      {item.image_url && (
+        <div className="relative overflow-hidden rounded-lg">
+          <img
+            src={item.image_url}
+            alt={item.name}
+            className="w-full h-48 object-cover"
+          />
+          {item.show_description && item.description && (
+            <div className="absolute inset-0 bg-black/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <p className="text-white font-garamond text-center px-6">
+                {item.description}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex justify-between items-start mt-4">
+        <div>
+          <h4 className="text-xl font-garamond font-medium text-gray-900 mb-1">
+            {item.name}
+          </h4>
+          {isWineItem(item) && item.description && (
+            <p className="text-sm text-gray-600 font-garamond">
+              {item.description}
+            </p>
+          )}
+          {item.alcohol_content && (options?.forceAlcoholIndicator || shouldShowAlcoholContent(item.category)) && (
+            <div className="mt-1">
+              <StrengthIndicator
+                strength={item.alcohol_content}
+                className="h-6 w-6"
+              />
+            </div>
+          )}
+        </div>
+        {renderPrices(item)}
+      </div>
+      {item.ingredients && item.ingredients.length > 0 && (
+        <div className="space-y-1 mt-2">
+          <p className="text-sm text-gray-500 font-garamond">
+            {item.ingredients.join(' • ')}
+          </p>
+          <div className="flex items-center gap-4 text-sm">
+            {renderDietaryInfo(item)}
+            {renderAllergens(item)}
+          </div>
+        </div>
+      )}
+      {(activeType === 'cocktails' || activeType === 'spirits') && !isWineItem(item) && item.garnish && (
+        <p className="text-sm text-gray-500 font-garamond italic mt-1">
+          Garnished with {item.garnish}
+        </p>
+      )}
+    </div>
+  );
+
+  const renderFlightsSubcategory = (subcategory: Category, subcategoryItems: MenuItem[]) => {
+    const drinkByName = new Map(
+      filteredItems
+        .filter((item) => item.menu_type === 'drinks' && item.category_id !== subcategory.id)
+        .map((item) => [normalizeMenuName(item.name), item]),
+    );
+
+    const orderedFlights = [...subcategoryItems].sort((a, b) => {
+      const aPrice = a.price ?? 0;
+      const bPrice = b.price ?? 0;
+      if (aPrice !== bPrice) return aPrice - bPrice;
+      return a.name.localeCompare(b.name);
+    });
+
+    return (
+      <div key={subcategory.id} id={`subcategory-${subcategory.id}`} className="space-y-6">
+        <div className="flex justify-center">
+          <div className="bg-ocean-600 text-white font-display font-bold px-8 py-2 rounded-full shadow-md">
+            {getCategoryPillLabel(subcategory.name)}
+          </div>
+        </div>
+
+        {orderedFlights.map((flightItem) => {
+          const flightDrinks = (flightItem.ingredients || [])
+            .map((drinkName) => drinkByName.get(normalizeMenuName(drinkName)))
+            .filter((drink): drink is MenuItem => Boolean(drink));
+
+          return (
+            <div key={flightItem.id} className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="bg-ocean-600 text-white font-display font-bold px-6 py-2 rounded-full shadow-md">
+                  {flightItem.name}
+                </div>
+                {flightItem.price != null && (
+                  <span className="font-garamond text-xl text-gray-700">
+                    ${flightItem.price.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid gap-8">
+                {(flightDrinks.length ? flightDrinks : [flightItem]).map((drinkItem) => (
+                  <div key={`${flightItem.id}-${drinkItem.id}`}>
+                    {renderMenuItemCard(drinkItem, { forceAlcoholIndicator: true })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderSubcategoryContent = (subcategory: Category) => {
+    const subcategoryItems = filteredItems.filter((item) => item.category_id === subcategory.id);
+    if (!subcategoryItems.length) return null;
+
+    if (subcategory.id === 'cat_flights') {
+      return renderFlightsSubcategory(subcategory, subcategoryItems);
+    }
+
+    return (
+      <div key={subcategory.id} id={`subcategory-${subcategory.id}`} className="space-y-6">
+        <div className="flex justify-center">
+          <div className="bg-ocean-600 text-white font-display font-bold px-8 py-2 rounded-full shadow-md">
+            {getCategoryPillLabel(subcategory.name)}
+          </div>
+        </div>
+        <div className="grid gap-8">
+          {subcategoryItems.map((item) => (
+            <div key={item.id}>
+              {renderMenuItemCard(item)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderCategoryContent = (category: Category) => {
     const categoryItems = filteredItems.filter(item => {
       if (!category.subcategories?.length) {
@@ -275,145 +438,31 @@ const MenuContent: React.FC = () => {
 
     if (!categoryItems.length && !category.subcategories?.length) return null;
 
+    const subcategoriesWithItems = (category.subcategories || []).filter((subcategory) =>
+      filteredItems.some((item) => item.category_id === subcategory.id),
+    );
+
+    const isCocktailsRoot = activeType === 'cocktails' && category.id === 'cat_cocktails';
+
     return (
       <div key={category.id} id={`category-${category.id}`} className="space-y-8">
-        <div className="relative">
-          <h3 className="text-2xl font-display font-bold text-ocean-800 pb-3 border-b-2 border-ocean-200">
-            {category.name}
-          </h3>
-          <div className="absolute bottom-0 left-0 w-24 h-0.5 bg-ocean-600"></div>
-        </div>
+        {!isCocktailsRoot && (
+          <div className="relative">
+            <h3 className="text-2xl font-display font-bold text-ocean-800 pb-3 border-b-2 border-ocean-200">
+              {category.name}
+            </h3>
+            <div className="absolute bottom-0 left-0 w-24 h-0.5 bg-ocean-600"></div>
+          </div>
+        )}
 
-        {category.subcategories?.map(subcategory => {
-          const subcategoryItems = filteredItems.filter(item => 
-            item.category_id === subcategory.id
-          );
-
-          if (!subcategoryItems.length) return null;
-
-          return (
-            <div key={subcategory.id} className="space-y-6">
-              <div className="flex justify-center">
-                <div className="bg-ocean-600 text-white font-display font-bold px-8 py-2 rounded-full shadow-md">
-                  {subcategory.name}
-                </div>
-              </div>
-              <div className="grid gap-8">
-                {subcategoryItems.map(item => (
-                  <div key={item.id} className="group">
-                    {item.image_url && (
-                      <div className="relative overflow-hidden rounded-lg">
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="w-full h-48 object-cover"
-                        />
-                        {item.show_description && item.description && (
-                          <div className="absolute inset-0 bg-black/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <p className="text-white font-garamond text-center px-6">
-                              {item.description}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex justify-between items-start mt-4">
-                      <div>
-                        <h4 className="text-xl font-garamond font-medium text-gray-900 mb-1">
-                          {item.name}
-                        </h4>
-                        {isWineItem(item) && item.description && (
-                          <p className="text-sm text-gray-600 font-garamond">
-                            {item.description}
-                          </p>
-                        )}
-                        {item.alcohol_content && shouldShowAlcoholContent(item.category) && (
-                          <div className="mt-1">
-                            <StrengthIndicator
-                              strength={item.alcohol_content}
-                              className="h-6 w-6"
-                            />
-                          </div>
-                        )}
-                      </div>
-                      {renderPrices(item)}
-                    </div>
-                    {item.ingredients && item.ingredients.length > 0 && (
-                      <div className="space-y-1 mt-2">
-                        <p className="text-sm text-gray-500 font-garamond">
-                          {item.ingredients.join(' • ')}
-                        </p>
-                        <div className="flex items-center gap-4 text-sm">
-                          {renderDietaryInfo(item)}
-                          {renderAllergens(item)}
-                        </div>
-                      </div>
-                    )}
-                    {(activeType === 'cocktails' || activeType === 'spirits') && !isWineItem(item) && item.garnish && (
-                      <p className="text-sm text-gray-500 font-garamond italic mt-1">
-                        Garnished with {item.garnish}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        {subcategoriesWithItems.map((subcategory) => renderSubcategoryContent(subcategory))}
 
         {/* Render items directly assigned to this category (if no subcategories) */}
-        {!category.subcategories?.length && (
+        {!subcategoriesWithItems.length && (
           <div className="grid gap-8">
-            {categoryItems.map(item => (
-              <div key={item.id} className="group">
-                {item.image_url && (
-                  <div className="relative overflow-hidden rounded-lg">
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-48 object-cover"
-                    />
-                    {item.show_description && item.description && (
-                      <div className="absolute inset-0 bg-black/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <p className="text-white font-garamond text-center px-6">
-                          {item.description}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="flex justify-between items-start mt-4">
-                  <div>
-                    <h4 className="text-xl font-garamond font-medium text-gray-900">
-                      {item.name}
-                    </h4>
-                    {item.alcohol_content && shouldShowAlcoholContent(item.category) && (
-                      <div className="mt-1">
-                        <StrengthIndicator
-                          strength={item.alcohol_content}
-                          className="h-6 w-6"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {renderPrices(item)}
-                </div>
-                {item.ingredients && item.ingredients.length > 0 && (
-                  <div className="space-y-1 mt-2">
-                    <p className="text-sm text-gray-500 font-garamond">
-                      {item.ingredients.join(' • ')}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm">
-                      {renderDietaryInfo(item)}
-                      {renderAllergens(item)}
-                    </div>
-                  </div>
-                )}
-                {(activeType === 'cocktails' || activeType === 'spirits') && item.garnish && (
-                  <p className="text-sm text-gray-500 font-garamond italic mt-1">
-                    Garnished with {item.garnish}
-                  </p>
-                )}
+            {categoryItems.map((item) => (
+              <div key={item.id}>
+                {renderMenuItemCard(item)}
               </div>
             ))}
           </div>
@@ -429,6 +478,33 @@ const MenuContent: React.FC = () => {
       </div>
     );
   }
+
+  const rootCategories = filteredCategories
+    .filter((category) => !category.parent_id)
+    .sort((a, b) => a.display_order - b.display_order);
+
+  const cocktailsRootCategory =
+    activeType === 'cocktails'
+      ? rootCategories.find((category) => category.id === 'cat_cocktails') ||
+        rootCategories.find((category) => category.name.toLowerCase() === 'cocktails') ||
+        null
+      : null;
+
+  const navTargets =
+    cocktailsRootCategory && activeType === 'cocktails'
+      ? (cocktailsRootCategory.subcategories || [])
+          .filter((subcategory) =>
+            filteredItems.some((item) => item.category_id === subcategory.id),
+          )
+          .sort((a, b) => a.display_order - b.display_order)
+          .map((subcategory) => ({
+            id: `subcategory-${subcategory.id}`,
+            label: getCategoryNavLabel(subcategory.name),
+          }))
+      : rootCategories.map((category) => ({
+          id: `category-${category.id}`,
+          label: category.name,
+        }));
 
   return (
     <div className="relative">
@@ -480,18 +556,15 @@ const MenuContent: React.FC = () => {
 
         {/* Category Navigation - Only show main categories */}
         <div className="flex flex-wrap justify-center gap-2">
-          {filteredCategories
-            .filter(category => !category.parent_id)
-            .sort((a, b) => a.display_order - b.display_order)
-            .map((category) => (
-              <button
-                key={category.id}
-                onClick={() => scrollToCategory(category.id)}
-                className="px-4 py-2 text-sm font-garamond text-gray-600 hover:text-ocean-600 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                {category.name}
-              </button>
-            ))}
+          {navTargets.map((target) => (
+            <button
+              key={target.id}
+              onClick={() => scrollToSection(target.id)}
+              className="px-4 py-2 text-sm font-garamond text-gray-600 hover:text-ocean-600 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              {target.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -502,10 +575,7 @@ const MenuContent: React.FC = () => {
         </div>
       ) : (
         <div ref={contentRef} className="space-y-12 pt-4">
-          {filteredCategories
-            .filter(category => !category.parent_id)
-            .sort((a, b) => a.display_order - b.display_order)
-            .map(category => renderCategoryContent(category))}
+          {rootCategories.map((category) => renderCategoryContent(category))}
         </div>
       )}
     </div>
