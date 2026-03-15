@@ -165,15 +165,57 @@ function App() {
 
         {/* Host Routes */}
         <Route path="/host" element={<AdminLayout portal="host"><PortalDashboard portal="host" /></AdminLayout>} />
-        <Route path="/host/reservations" element={<AdminLayout portal="host" requiredCapability="reservations"><BOHReservations /></AdminLayout>} />
-        <Route path="/host/events-parties" element={<AdminLayout portal="host" requiredCapability="events_parties"><BOHEventParties /></AdminLayout>} />
-        <Route path="/host/classes" element={<AdminLayout portal="host" requiredCapability="classes"><BOHClasses /></AdminLayout>} />
+        <Route
+          path="/host/reservations"
+          element={
+            <AdminLayout portal="host" requiredCapability="reservations">
+              <BOHReservations canManageCapacity={false} canCreateReservations canEditReservations canDeleteReservations={false} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/host/events-parties"
+          element={
+            <AdminLayout portal="host" requiredCapability="events_parties">
+              <BOHEventParties canManageCapacity={false} canEditBookings canDeleteBookings={false} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/host/classes"
+          element={
+            <AdminLayout portal="host" requiredCapability="classes">
+              <BOHClasses canManageClassSetup={false} canEditBookings canDeleteBookings={false} />
+            </AdminLayout>
+          }
+        />
 
         {/* Staff Routes */}
         <Route path="/staff" element={<AdminLayout portal="staff"><PortalDashboard portal="staff" /></AdminLayout>} />
-        <Route path="/staff/reservations" element={<AdminLayout portal="staff" requiredCapability="reservations"><BOHReservations /></AdminLayout>} />
-        <Route path="/staff/events-parties" element={<AdminLayout portal="staff" requiredCapability="events_parties"><BOHEventParties /></AdminLayout>} />
-        <Route path="/staff/classes" element={<AdminLayout portal="staff" requiredCapability="classes"><BOHClasses /></AdminLayout>} />
+        <Route
+          path="/staff/reservations"
+          element={
+            <AdminLayout portal="staff" requiredCapability="reservations">
+              <BOHReservations canManageCapacity={false} canCreateReservations canEditReservations canDeleteReservations={false} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/staff/events-parties"
+          element={
+            <AdminLayout portal="staff" requiredCapability="events_parties">
+              <BOHEventParties canManageCapacity={false} canEditBookings canDeleteBookings={false} />
+            </AdminLayout>
+          }
+        />
+        <Route
+          path="/staff/classes"
+          element={
+            <AdminLayout portal="staff" requiredCapability="classes">
+              <BOHClasses canManageClassSetup={false} canEditBookings canDeleteBookings={false} />
+            </AdminLayout>
+          }
+        />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

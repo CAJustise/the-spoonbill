@@ -43,7 +43,17 @@ const formatClock = (value: string) => {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 };
 
-const BOHEventParties: React.FC = () => {
+interface BOHEventPartiesProps {
+  canManageCapacity?: boolean;
+  canEditBookings?: boolean;
+  canDeleteBookings?: boolean;
+}
+
+const BOHEventParties: React.FC<BOHEventPartiesProps> = ({
+  canManageCapacity = true,
+  canEditBookings = true,
+  canDeleteBookings = true,
+}) => {
   const [bookings, setBookings] = useState<EventBookingRecord[]>([]);
   const [slots, setSlots] = useState<TimeSlotRecord[]>([]);
   const [slotDrafts, setSlotDrafts] = useState<Record<string, string>>({});
@@ -136,6 +146,8 @@ const BOHEventParties: React.FC = () => {
   );
 
   const handleSlotCapacitySave = async (slot: TimeSlotRecord) => {
+    if (!canManageCapacity) return;
+
     const nextCapacity = Number(slotDrafts[slot.id] ?? slot.capacity);
     if (Number.isNaN(nextCapacity) || nextCapacity < 1) {
       alert('Capacity must be 1 or greater.');
@@ -158,6 +170,7 @@ const BOHEventParties: React.FC = () => {
   };
 
   const handleDeleteBooking = async (bookingId: string) => {
+    if (!canDeleteBookings) return;
     if (!confirm('Delete this private event booking?')) return;
 
     setSaving(true);
@@ -176,6 +189,7 @@ const BOHEventParties: React.FC = () => {
   };
 
   const handleBookingUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canEditBookings) return;
     event.preventDefault();
     if (!editingBooking) return;
 
@@ -235,8 +249,13 @@ const BOHEventParties: React.FC = () => {
         <div>
           <h1 className="text-3xl font-display font-bold text-gray-900">Event / Parties Calendar</h1>
           <p className="text-gray-600 font-garamond">
-            Manage private events and party bookings, with configurable event-slot capacities.
+            Manage private event bookings{canManageCapacity ? ', with configurable event-slot capacities.' : '.'}
           </p>
+          {!canManageCapacity && (
+            <p className="text-sm text-gray-500 font-garamond mt-1">
+              Event slot setup is view-only in this portal.
+            </p>
+          )}
         </div>
 
         <div className="grid sm:grid-cols-4 gap-4">
@@ -294,16 +313,19 @@ const BOHEventParties: React.FC = () => {
                         [slot.id]: event.target.value,
                       }))
                     }
-                    className="w-24 px-3 py-2 border rounded-lg"
+                    disabled={!canManageCapacity}
+                    className="w-24 px-3 py-2 border rounded-lg disabled:bg-gray-100 disabled:text-gray-500"
                   />
-                  <button
-                    type="button"
-                    onClick={() => void handleSlotCapacitySave(slot)}
-                    disabled={saving}
-                    className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
-                  >
-                    <Save className="h-4 w-4" />
-                  </button>
+                  {canManageCapacity && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSlotCapacitySave(slot)}
+                      disabled={saving}
+                      className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
+                    >
+                      <Save className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -364,22 +386,29 @@ const BOHEventParties: React.FC = () => {
                       <span className="capitalize text-gray-700">{booking.status || 'pending'}</span>
                     </td>
                     <td className="px-4 py-3 text-right space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingBooking(booking)}
-                        className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
-                        title="Edit booking"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteBooking(booking.id)}
-                        className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
-                        title="Delete booking"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEditBookings && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingBooking(booking)}
+                          className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
+                          title="Edit booking"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDeleteBookings && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteBooking(booking.id)}
+                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
+                          title="Delete booking"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {!canEditBookings && !canDeleteBookings && (
+                        <span className="text-sm text-gray-400">View Only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -396,7 +425,7 @@ const BOHEventParties: React.FC = () => {
         </section>
       </div>
 
-      {editingBooking && (
+      {editingBooking && canEditBookings && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">

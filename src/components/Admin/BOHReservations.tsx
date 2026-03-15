@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Edit2, Save, Trash2, X } from 'lucide-react';
+import { Edit2, Plus, Save, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface ReservationRecord {
@@ -36,7 +36,19 @@ const formatClock = (value: string) => {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 };
 
-const BOHReservations: React.FC = () => {
+interface BOHReservationsProps {
+  canManageCapacity?: boolean;
+  canCreateReservations?: boolean;
+  canEditReservations?: boolean;
+  canDeleteReservations?: boolean;
+}
+
+const BOHReservations: React.FC<BOHReservationsProps> = ({
+  canManageCapacity = true,
+  canCreateReservations = true,
+  canEditReservations = true,
+  canDeleteReservations = true,
+}) => {
   const [reservations, setReservations] = useState<ReservationRecord[]>([]);
   const [slots, setSlots] = useState<TimeSlotRecord[]>([]);
   const [slotDrafts, setSlotDrafts] = useState<Record<string, string>>({});
@@ -45,6 +57,7 @@ const BOHReservations: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isCreateReservationOpen, setIsCreateReservationOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<ReservationRecord | null>(null);
 
   const fetchReservations = async () => {
@@ -127,6 +140,8 @@ const BOHReservations: React.FC = () => {
   );
 
   const handleSlotCapacitySave = async (slot: TimeSlotRecord) => {
+    if (!canManageCapacity) return;
+
     const nextCapacity = Number(slotDrafts[slot.id] ?? slot.capacity);
     if (Number.isNaN(nextCapacity) || nextCapacity < 1) {
       alert('Capacity must be 1 or greater.');
@@ -150,6 +165,7 @@ const BOHReservations: React.FC = () => {
   };
 
   const handleDeleteReservation = async (reservationId: string) => {
+    if (!canDeleteReservations) return;
     if (!confirm('Delete this reservation?')) return;
 
     setSaving(true);
@@ -169,6 +185,7 @@ const BOHReservations: React.FC = () => {
   };
 
   const handleReservationUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canEditReservations) return;
     event.preventDefault();
     if (!editingReservation) return;
 
@@ -205,6 +222,40 @@ const BOHReservations: React.FC = () => {
     }
   };
 
+  const handleReservationCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canCreateReservations) return;
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      customer_name: String(formData.get('customer_name') || '').trim(),
+      customer_email: String(formData.get('customer_email') || '').trim(),
+      customer_phone: String(formData.get('customer_phone') || '').trim(),
+      party_size: Number(formData.get('party_size') || 1),
+      reservation_date: String(formData.get('reservation_date') || '').trim(),
+      reservation_time: String(formData.get('reservation_time') || '').trim(),
+      special_requests: String(formData.get('special_requests') || '').trim(),
+      status: String(formData.get('status') || 'confirmed').trim().toLowerCase(),
+    };
+
+    if (!payload.customer_name || !payload.customer_email || !payload.reservation_date || !payload.reservation_time) {
+      alert('Name, email, date, and time are required.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('reservations').insert([payload]);
+      if (error) throw error;
+      await fetchReservations();
+      setIsCreateReservationOpen(false);
+    } catch (error) {
+      alert(`Failed to create reservation: ${(error as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -216,11 +267,28 @@ const BOHReservations: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-gray-900">Reservations Calendar</h1>
-          <p className="text-gray-600 font-garamond">
-            Review incoming reservation requests and control reservation slot capacities.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-gray-900">Reservations Calendar</h1>
+            <p className="text-gray-600 font-garamond">
+              Review incoming reservation requests{canManageCapacity ? ' and control reservation slot capacities.' : '.'}
+            </p>
+            {!canManageCapacity && (
+              <p className="text-sm text-gray-500 font-garamond mt-1">
+                Reservation slot setup is view-only in this portal.
+              </p>
+            )}
+          </div>
+          {canCreateReservations && (
+            <button
+              type="button"
+              onClick={() => setIsCreateReservationOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Reservation
+            </button>
+          )}
         </div>
 
         <div className="grid sm:grid-cols-3 gap-4">
@@ -274,16 +342,19 @@ const BOHReservations: React.FC = () => {
                         [slot.id]: event.target.value,
                       }))
                     }
-                    className="w-24 px-3 py-2 border rounded-lg"
+                    disabled={!canManageCapacity}
+                    className="w-24 px-3 py-2 border rounded-lg disabled:bg-gray-100 disabled:text-gray-500"
                   />
-                  <button
-                    type="button"
-                    onClick={() => void handleSlotCapacitySave(slot)}
-                    disabled={saving}
-                    className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
-                  >
-                    <Save className="h-4 w-4" />
-                  </button>
+                  {canManageCapacity && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSlotCapacitySave(slot)}
+                      disabled={saving}
+                      className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
+                    >
+                      <Save className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -323,7 +394,9 @@ const BOHReservations: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Guest</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Party</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                    {canEditReservations || canDeleteReservations ? 'Actions' : 'View'}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -342,22 +415,29 @@ const BOHReservations: React.FC = () => {
                       <span className="capitalize text-gray-700">{reservation.status || 'pending'}</span>
                     </td>
                     <td className="px-4 py-3 text-right space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingReservation(reservation)}
-                        className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
-                        title="Edit reservation"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteReservation(reservation.id)}
-                        className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
-                        title="Delete reservation"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEditReservations && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingReservation(reservation)}
+                          className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
+                          title="Edit reservation"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDeleteReservations && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteReservation(reservation.id)}
+                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
+                          title="Delete reservation"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {!canEditReservations && !canDeleteReservations && (
+                        <span className="text-sm text-gray-400">View Only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -374,7 +454,85 @@ const BOHReservations: React.FC = () => {
         </section>
       </div>
 
-      {editingReservation && (
+      {isCreateReservationOpen && canCreateReservations && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-xl font-display font-bold text-gray-900">Add Reservation</h3>
+              <button
+                type="button"
+                onClick={() => setIsCreateReservationOpen(false)}
+                className="p-2 text-gray-500 hover:text-gray-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(event) => void handleReservationCreate(event)} className="p-6 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input name="customer_name" required className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" name="customer_email" required className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input name="customer_phone" className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Party Size</label>
+                  <input type="number" min={1} max={20} name="party_size" defaultValue={2} required className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input type="date" name="reservation_date" required className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                  <input type="time" name="reservation_time" required className="w-full px-3 py-2 border rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select name="status" defaultValue="confirmed" className="w-full px-3 py-2 border rounded-lg">
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status[0].toUpperCase() + status.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
+                <textarea rows={3} name="special_requests" className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateReservationOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-ocean-600 text-white hover:bg-ocean-700 disabled:opacity-60"
+                >
+                  Create Reservation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingReservation && canEditReservations && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">

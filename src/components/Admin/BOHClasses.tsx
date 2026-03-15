@@ -123,7 +123,17 @@ const nextGeneratedId = (prefix: string) => {
   return `${prefix}_${Date.now()}_${random}`;
 };
 
-const BOHClasses: React.FC = () => {
+interface BOHClassesProps {
+  canManageClassSetup?: boolean;
+  canEditBookings?: boolean;
+  canDeleteBookings?: boolean;
+}
+
+const BOHClasses: React.FC<BOHClassesProps> = ({
+  canManageClassSetup = true,
+  canEditBookings = true,
+  canDeleteBookings = true,
+}) => {
   const [classEvents, setClassEvents] = useState<ClassEvent[]>([]);
   const [classSessions, setClassSessions] = useState<ClassSession[]>([]);
   const [classBookings, setClassBookings] = useState<ClassBooking[]>([]);
@@ -345,22 +355,26 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleOpenCreateClass = () => {
+    if (!canManageClassSetup) return;
     setEditingClassEvent(null);
     setIsClassFormOpen(true);
   };
 
   const handleOpenEditClass = (classEvent: ClassEvent) => {
+    if (!canManageClassSetup) return;
     setEditingClassEvent(classEvent);
     setIsClassFormOpen(true);
   };
 
   const handleOpenCreateSession = (eventId = '') => {
+    if (!canManageClassSetup) return;
     setEditingSession(null);
     resetSessionDraft(eventId);
     setIsSessionFormOpen(true);
   };
 
   const handleOpenEditSession = (session: ClassSession) => {
+    if (!canManageClassSetup) return;
     setEditingSession(session);
     setSessionDraft({
       event_id: session.event_id,
@@ -374,11 +388,13 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleOpenRecurring = (eventId = '') => {
+    if (!canManageClassSetup) return;
     resetRecurringDraft(eventId);
     setIsRecurringFormOpen(true);
   };
 
   const handleClassSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canManageClassSetup) return;
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
 
@@ -441,6 +457,7 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleDeleteClass = async (classId: string) => {
+    if (!canManageClassSetup) return;
     if (!confirm('Delete this class template and all of its future sessions? Existing signups will remain in class bookings.')) return;
 
     setSaving(true);
@@ -466,6 +483,7 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleSessionSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canManageClassSetup) return;
     event.preventDefault();
 
     const eventId = sessionDraft.event_id;
@@ -545,6 +563,7 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleRecurringSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canManageClassSetup) return;
     event.preventDefault();
 
     const eventId = recurringDraft.event_id;
@@ -612,6 +631,7 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
+    if (!canManageClassSetup) return;
     if (!confirm('Delete this class session? Existing signups will remain for historical records.')) return;
 
     setSaving(true);
@@ -631,6 +651,7 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleBookingDelete = async (bookingId: string) => {
+    if (!canDeleteBookings) return;
     if (!confirm('Delete this class signup?')) return;
 
     setSaving(true);
@@ -649,6 +670,7 @@ const BOHClasses: React.FC = () => {
   };
 
   const handleBookingUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!canEditBookings) return;
     event.preventDefault();
     if (!editingBooking) return;
 
@@ -698,35 +720,42 @@ const BOHClasses: React.FC = () => {
           <div>
             <h1 className="text-3xl font-display font-bold text-gray-900">Classes Calendar</h1>
             <p className="text-gray-600 font-garamond">
-              Build class templates, generate weekly/monthly sessions, and manage attendee signups.
+              {canManageClassSetup
+                ? 'Build class templates, generate weekly/monthly sessions, and manage attendee signups.'
+                : 'View class templates and sessions while managing class reservations.'}
             </p>
+            {!canManageClassSetup && (
+              <p className="text-sm text-gray-500 font-garamond mt-1">Class setup is view-only in this portal.</p>
+            )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => handleOpenCreateSession()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-ocean-200 text-ocean-700 rounded-lg hover:bg-ocean-50"
-            >
-              <Plus className="h-4 w-4" />
-              Add Session
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenRecurring()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-ocean-200 text-ocean-700 rounded-lg hover:bg-ocean-50"
-            >
-              <Repeat className="h-4 w-4" />
-              Generate Recurring
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenCreateClass}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add Class Template
-            </button>
-          </div>
+          {canManageClassSetup && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenCreateSession()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-ocean-200 text-ocean-700 rounded-lg hover:bg-ocean-50"
+              >
+                <Plus className="h-4 w-4" />
+                Add Session
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenRecurring()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-ocean-200 text-ocean-700 rounded-lg hover:bg-ocean-50"
+              >
+                <Repeat className="h-4 w-4" />
+                Generate Recurring
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenCreateClass}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add Class Template
+              </button>
+            </div>
+          )}
         </div>
 
         <section className="bg-white rounded-lg shadow p-6">
@@ -741,7 +770,9 @@ const BOHClasses: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Default Capacity</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Sessions</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                    {canManageClassSetup ? 'Actions' : 'View'}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -776,30 +807,36 @@ const BOHClasses: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCreateSession(classEvent.id)}
-                          className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
-                          title="Add session"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditClass(classEvent)}
-                          className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
-                          title="Edit class template"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteClass(classEvent.id)}
-                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
-                          title="Delete class template"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canManageClassSetup ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCreateSession(classEvent.id)}
+                              className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
+                              title="Add session"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditClass(classEvent)}
+                              className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
+                              title="Edit class template"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteClass(classEvent.id)}
+                              className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
+                              title="Delete class template"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -826,7 +863,9 @@ const BOHClasses: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date / Time</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Capacity</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                    {canManageClassSetup ? 'Actions' : 'View'}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -860,22 +899,28 @@ const BOHClasses: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditSession(session)}
-                          className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
-                          title="Edit class session"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteSession(session.id)}
-                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
-                          title="Delete class session"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canManageClassSetup ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditSession(session)}
+                              className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
+                              title="Edit class session"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteSession(session.id)}
+                              className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
+                              title="Delete class session"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -917,7 +962,9 @@ const BOHClasses: React.FC = () => {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Guest</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Party</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                    {canEditBookings || canDeleteBookings ? 'Actions' : 'View'}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -947,22 +994,29 @@ const BOHClasses: React.FC = () => {
                         <span className="capitalize text-gray-700">{booking.status || 'pending'}</span>
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => setEditingBooking(booking)}
-                          className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
-                          title="Edit booking"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleBookingDelete(booking.id)}
-                          className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
-                          title="Delete booking"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canEditBookings && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingBooking(booking)}
+                            className="inline-flex items-center justify-center p-2 text-ocean-600 hover:text-ocean-700"
+                            title="Edit booking"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        {canDeleteBookings && (
+                          <button
+                            type="button"
+                            onClick={() => void handleBookingDelete(booking.id)}
+                            className="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-700"
+                            title="Delete booking"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        {!canEditBookings && !canDeleteBookings && (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -980,7 +1034,7 @@ const BOHClasses: React.FC = () => {
         </section>
       </div>
 
-      {isClassFormOpen && (
+      {canManageClassSetup && isClassFormOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -1128,7 +1182,7 @@ const BOHClasses: React.FC = () => {
         </div>
       )}
 
-      {isSessionFormOpen && (
+      {canManageClassSetup && isSessionFormOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -1250,7 +1304,7 @@ const BOHClasses: React.FC = () => {
         </div>
       )}
 
-      {isRecurringFormOpen && (
+      {canManageClassSetup && isRecurringFormOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -1403,7 +1457,7 @@ const BOHClasses: React.FC = () => {
         </div>
       )}
 
-      {editingBooking && (
+      {editingBooking && canEditBookings && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
