@@ -52,18 +52,26 @@ const HIDE_ALCOHOL_CONTENT_CATEGORIES = [
 ];
 
 const CATEGORY_NAV_LABELS: Record<string, string> = {
-  'Signature Cocktails': 'Signature Cocktails',
+  'Signature Cocktails': 'Signature',
+  'Signature': 'Signature',
   'Happy Hour Specials': 'Happy Hour',
+  'Happy Hour': 'Happy Hour',
   'Cocktail Flights': 'Flights',
-  'Classic Cocktails': 'Classic Cocktails',
+  'Flights': 'Flights',
+  'Classic Cocktails': 'Classic',
+  'Classic': 'Classic',
   'Zero Proof': 'Zero Proof',
 };
 
 const CATEGORY_PILL_LABELS: Record<string, string> = {
   'Signature Cocktails': 'Signature',
+  'Signature': 'Signature',
   'Happy Hour Specials': 'Happy Hour',
+  'Happy Hour': 'Happy Hour',
   'Cocktail Flights': 'Flights',
+  'Flights': 'Flights',
   'Classic Cocktails': 'Classic',
+  'Classic': 'Classic',
   'Zero Proof': 'Zero Proof',
 };
 
@@ -560,7 +568,7 @@ const MenuContent: React.FC = () => {
             <button
               key={target.id}
               onClick={() => scrollToSection(target.id)}
-              className="px-4 py-2 text-sm font-garamond text-gray-600 hover:text-ocean-600 hover:bg-gray-100 rounded-full transition-colors"
+              className="px-5 py-2 text-sm font-display font-bold text-white bg-ocean-600 hover:bg-ocean-700 rounded-full shadow-md transition-colors"
             >
               {target.label}
             </button>

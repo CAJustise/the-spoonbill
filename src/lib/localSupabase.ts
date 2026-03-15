@@ -390,7 +390,7 @@ const seedMenu = () => {
     { id: 'cat_cocktails', name: 'Cocktails', menu_type: 'drinks', display_order: 1, parent_id: null, active: true },
     { id: 'cat_spirits', name: 'Spirits', menu_type: 'drinks', display_order: 2, parent_id: null, active: true },
     { id: 'cat_cuisine', name: 'Cuisine', menu_type: 'food', display_order: 1, parent_id: null, active: true },
-    { id: 'cat_signature', name: 'Signature Cocktails', menu_type: 'drinks', display_order: 1, parent_id: 'cat_cocktails', active: true },
+    { id: 'cat_signature', name: 'Signature', menu_type: 'drinks', display_order: 1, parent_id: 'cat_cocktails', active: true },
     { id: 'cat_zero_proof', name: 'Zero Proof', menu_type: 'drinks', display_order: 2, parent_id: 'cat_cocktails', active: true },
     { id: 'cat_whiskey', name: 'Whiskey', menu_type: 'drinks', display_order: 1, parent_id: 'cat_spirits', active: true },
     { id: 'cat_agave', name: 'Agave', menu_type: 'drinks', display_order: 2, parent_id: 'cat_spirits', active: true },
@@ -917,25 +917,25 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
   });
   const signatureCategoryId = ensureCategory({
     id: 'cat_signature',
-    name: 'Signature Cocktails',
+    name: 'Signature',
     parent_id: cocktailsCategoryId,
     display_order: 1,
   });
   const happyHourCategoryId = ensureCategory({
     id: 'cat_happy_hour',
-    name: 'Happy Hour Specials',
+    name: 'Happy Hour',
     parent_id: cocktailsCategoryId,
     display_order: 2,
   });
   const flightsCategoryId = ensureCategory({
     id: 'cat_flights',
-    name: 'Cocktail Flights',
+    name: 'Flights',
     parent_id: cocktailsCategoryId,
     display_order: 3,
   });
   const classicsCategoryId = ensureCategory({
     id: 'cat_classics',
-    name: 'Classic Cocktails',
+    name: 'Classic',
     parent_id: cocktailsCategoryId,
     display_order: 4,
   });
@@ -947,6 +947,7 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
   });
 
   const existingDrinkByKey = new Map<string, PlainObject>();
+  const existingDrinksByName = new Map<string, PlainObject[]>();
   items
     .filter((item) => item.menu_type === 'drinks')
     .forEach((item) => {
@@ -955,6 +956,10 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       if (!existingDrinkByKey.has(key)) {
         existingDrinkByKey.set(key, item);
       }
+      const nameKey = name.toLowerCase();
+      const list = existingDrinksByName.get(nameKey) || [];
+      list.push(item);
+      existingDrinksByName.set(nameKey, list);
     });
 
   for (const imported of CODA_BEVERAGE_IMPORT) {
@@ -977,7 +982,13 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
           ? signatureCategoryId
           : classicsCategoryId;
     const itemKey = normalizeDrinkKey(name, price);
-    const existing = existingDrinkByKey.get(itemKey);
+    let existing = existingDrinkByKey.get(itemKey);
+    if (!existing) {
+      const sameNameItems = existingDrinksByName.get(name.toLowerCase()) || [];
+      if (sameNameItems.length === 1) {
+        existing = sameNameItems[0];
+      }
+    }
 
     if (!existing) {
       items.push({
@@ -1009,38 +1020,29 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       continue;
     }
 
+    // Keep BOH edits intact for existing records; only fill missing essentials.
     let itemChanged = false;
-    const syncField = (field: string, value: any) => {
-      const before = existing[field];
-      const same =
-        Array.isArray(before) && Array.isArray(value)
-          ? JSON.stringify(before) === JSON.stringify(value)
-          : before === value;
-      if (!same) {
+    const ensureField = (field: string, value: any) => {
+      const current = existing[field];
+      if (current === undefined || current === null || current === '') {
         existing[field] = value;
         itemChanged = true;
       }
     };
 
-    syncField('name', name);
-    syncField('description', description);
-    syncField('price', price);
-    syncField('bottle_price', null);
-    syncField('menu_type', 'drinks');
-    syncField('show_price', true);
-    syncField('show_description', true);
-    syncField('active', true);
-    syncField('ingredients', ingredients);
-    syncField('alcohol_content', alcoholContent);
-    syncField('garnish', null);
-    syncField('category_id', categoryId);
-    syncField('coda_signature', isSignature);
-    syncField('coda_happy_hour', isHappyHour);
-    syncField('coda_flight_group', flightGroup);
-    syncField('allergens', existing.allergens ?? null);
-    syncField('is_vegetarian', existing.is_vegetarian ?? true);
-    syncField('is_vegan', existing.is_vegan ?? true);
-    syncField('is_gluten_free', existing.is_gluten_free ?? true);
+    ensureField('name', name);
+    ensureField('description', description);
+    ensureField('price', price);
+    ensureField('menu_type', 'drinks');
+    ensureField('show_price', true);
+    ensureField('show_description', true);
+    ensureField('active', true);
+    ensureField('ingredients', ingredients);
+    ensureField('alcohol_content', alcoholContent);
+    ensureField('category_id', categoryId);
+    ensureField('coda_signature', isSignature);
+    ensureField('coda_happy_hour', isHappyHour);
+    ensureField('coda_flight_group', flightGroup);
 
     if (!existing.created_at) {
       existing.created_at = now;
@@ -1071,6 +1073,13 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       const itemName = typeof item.name === 'string' ? normalizeDrinkName(item.name) : '';
       return normalizeDrinkKey(itemName, item.price) === key;
     });
+    if (!existing) {
+      existing = items.find((item) => {
+        if (item.menu_type !== 'drinks') return false;
+        const itemName = typeof item.name === 'string' ? normalizeDrinkName(item.name) : '';
+        return itemName.toLowerCase() === name.toLowerCase();
+      });
+    }
 
     if (!existing) {
       existing = {
@@ -1103,39 +1112,22 @@ const ensureCodaBeverageImport = (db: PlainObject) => {
       return;
     }
 
+    // Preserve BOH edits (price, lineup, etc.) for curated rows once seeded.
     let itemChanged = false;
-    const syncField = (field: string, value: any) => {
-      const before = existing[field];
-      const same =
-        Array.isArray(before) && Array.isArray(value)
-          ? JSON.stringify(before) === JSON.stringify(value)
-          : before === value;
-      if (!same) {
+    const ensureField = (field: string, value: any) => {
+      const current = existing[field];
+      if (current === undefined || current === null || current === '') {
         existing[field] = value;
         itemChanged = true;
       }
     };
 
-    syncField('name', name);
-    syncField('description', config.description);
-    syncField('price', config.price);
-    syncField('bottle_price', null);
-    syncField('image_url', null);
-    syncField('menu_type', 'drinks');
-    syncField('show_price', true);
-    syncField('show_description', true);
-    syncField('active', true);
-    syncField('ingredients', config.ingredients);
-    syncField('alcohol_content', config.alcohol_content);
-    syncField('garnish', null);
-    syncField('category_id', config.category_id);
-    syncField('coda_signature', config.coda_signature);
-    syncField('coda_happy_hour', config.coda_happy_hour);
-    syncField('coda_flight_group', config.coda_flight_group);
-    syncField('allergens', existing.allergens ?? null);
-    syncField('is_vegetarian', existing.is_vegetarian ?? true);
-    syncField('is_vegan', existing.is_vegan ?? true);
-    syncField('is_gluten_free', existing.is_gluten_free ?? true);
+    ensureField('menu_type', 'drinks');
+    ensureField('show_price', true);
+    ensureField('show_description', true);
+    ensureField('active', true);
+    ensureField('category_id', config.category_id);
+    ensureField('coda_flight_group', config.coda_flight_group);
 
     if (!existing.created_at) {
       existing.created_at = now;
