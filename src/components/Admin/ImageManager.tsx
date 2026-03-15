@@ -1,142 +1,119 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Upload, X, Image as ImageIcon, Copy, Check, Filter, Edit2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Upload, X, Image as ImageIcon, Copy, Check, Filter, Edit2, RefreshCw, KeyRound, Save } from 'lucide-react';
+import {
+  type GithubImageCategory,
+  type GithubImageItem,
+  deleteGithubImage,
+  githubImageConfig,
+  loadGithubImageLibrary,
+  updateGithubImageMetadata,
+  uploadGithubImages,
+} from '../../lib/githubImageLibrary';
 
-interface ImageMetadata {
-  id: string;
-  storage_id: string;
-  display_name: string;
-  category_id: string | null;
-  description: string | null;
-  url: string;
-  category?: {
-    name: string;
-  } | null;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  description: string | null;
-}
+const TOKEN_STORAGE_KEY = 'spoonbill.github.token';
 
 const ImageManager: React.FC = () => {
-  const [images, setImages] = useState<ImageMetadata[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [images, setImages] = useState<GithubImageItem[]>([]);
+  const [categories, setCategories] = useState<GithubImageCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [uploadCategory, setUploadCategory] = useState<string>('');
   const [isMetadataFormOpen, setIsMetadataFormOpen] = useState(false);
-  const [editingImage, setEditingImage] = useState<ImageMetadata | null>(null);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const [editingImage, setEditingImage] = useState<GithubImageItem | null>(null);
+  const [githubToken, setGithubToken] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+  });
+  const [tokenInput, setTokenInput] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+  });
 
   const fetchData = async () => {
     try {
-      // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('image_categories')
-        .select('*')
-        .eq('active', true)
-        .order('name');
+      setSyncing(true);
+      const library = await loadGithubImageLibrary(githubToken || undefined);
+      setImages(library.images);
+      setCategories(library.categories);
 
-      if (categoriesError) throw categoriesError;
-      setCategories(categoriesData || []);
-
-      // Fetch images with metadata
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('images')
-        .list('');
-
-      if (storageError) throw storageError;
-
-      const { data: metadataData, error: metadataError } = await supabase
-        .from('image_metadata')
-        .select(`
-          *,
-          category:category_id (name)
-        `);
-
-      if (metadataError) throw metadataError;
-
-      const imageUrls = await Promise.all(
-        storageData.map(async (file) => {
-          const { data: { publicUrl } } = supabase.storage
-            .from('images')
-            .getPublicUrl(file.name);
-          
-          const metadata = metadataData?.find(m => m.storage_id === file.name) || {
-            storage_id: file.name,
-            display_name: file.name,
-            category_id: null,
-            description: null
-          };
-
-          return {
-            ...metadata,
-            url: publicUrl
-          };
-        })
-      );
-
-      setImages(imageUrls);
+      if (!uploadCategory && library.categories.length > 0) {
+        setUploadCategory(library.categories[0].id);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      alert('Error fetching data: ' + (error as Error).message);
+      console.error('Error fetching GitHub image library:', error);
+      alert('Error fetching GitHub image library: ' + (error as Error).message);
+    } finally {
+      setLoading(false);
+      setSyncing(false);
     }
   };
 
+  useEffect(() => {
+    void fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [githubToken]);
+
+  const saveToken = () => {
+    const trimmed = tokenInput.trim();
+
+    if (typeof window !== 'undefined') {
+      if (trimmed) {
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, trimmed);
+      } else {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    }
+
+    setGithubToken(trimmed);
+  };
+
+  const clearToken = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+
+    setTokenInput('');
+    setGithubToken('');
+  };
+
   const uploadImages = async (files: FileList) => {
+    if (!githubToken) {
+      alert('Save a GitHub token first to enable uploads.');
+      return;
+    }
+
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
     try {
       setUploading(true);
       setUploadProgress({});
 
-      // Process files in batches of 3 to avoid overwhelming the system
-      const batchSize = 3;
-      const fileArray = Array.from(files);
-      
-      for (let i = 0; i < fileArray.length; i += batchSize) {
-        const batch = fileArray.slice(i, i + batchSize);
-        await Promise.all(batch.map(async (file) => {
-          try {
-            // Create a unique file name
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-            // Upload file
-            const { error: uploadError } = await supabase.storage
-              .from('images')
-              .upload(fileName, file, {
-                onUploadProgress: (progress) => {
-                  setUploadProgress(prev => ({
-                    ...prev,
-                    [file.name]: Math.round((progress.loaded / progress.total) * 100)
-                  }));
-                }
-              });
-
-            if (uploadError) throw uploadError;
-
-            // Create metadata entry
-            const { error: metadataError } = await supabase
-              .from('image_metadata')
-              .insert([{
-                storage_id: fileName,
-                display_name: file.name.split('.')[0], // Use original filename without extension
-                category_id: null
-              }]);
-
-            if (metadataError) throw metadataError;
-
-          } catch (error) {
-            console.error(`Error uploading ${file.name}:`, error);
-            // Continue with other files even if one fails
-          }
-        }));
+      const maxSingleFileSize = 25 * 1024 * 1024; // 25MB each
+      const oversized = fileArray.filter((file) => file.size > maxSingleFileSize);
+      if (oversized.length > 0) {
+        alert(`These files exceed 25MB and cannot be uploaded:\n${oversized.map((file) => file.name).join('\n')}`);
+        return;
       }
+
+      const selectedUploadCategory = categories.find((category) => category.id === uploadCategory) || null;
+
+      await uploadGithubImages(
+        fileArray,
+        selectedUploadCategory?.id || null,
+        selectedUploadCategory?.name || null,
+        githubToken,
+        (fileName, percent) => {
+          setUploadProgress((previous) => ({
+            ...previous,
+            [fileName]: percent,
+          }));
+        },
+      );
 
       await fetchData();
     } catch (error) {
@@ -148,48 +125,25 @@ const ImageManager: React.FC = () => {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
       return;
     }
 
-    const files = Array.from(e.target.files);
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    const maxSize = 25 * 1024 * 1024; // 25MB total limit
-
-    if (totalSize > maxSize) {
-      alert('Total file size must be less than 25MB');
-      return;
-    }
-
-    const invalidFiles = files.filter(file => file.size > 5 * 1024 * 1024);
-    if (invalidFiles.length > 0) {
-      alert(`The following files exceed the 5MB limit:\n${invalidFiles.map(f => f.name).join('\n')}`);
-      return;
-    }
-
-    await uploadImages(e.target.files);
+    await uploadImages(event.target.files);
+    event.target.value = '';
   };
 
-  const handleDeleteImage = async (image: ImageMetadata) => {
-    if (!confirm('Are you sure you want to delete this image?')) return;
+  const handleDeleteImage = async (image: GithubImageItem) => {
+    if (!githubToken) {
+      alert('Save a GitHub token first to delete images.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this image from GitHub?')) return;
 
     try {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('images')
-        .remove([image.storage_id]);
-
-      if (storageError) throw storageError;
-
-      // Delete metadata
-      const { error: metadataError } = await supabase
-        .from('image_metadata')
-        .delete()
-        .eq('storage_id', image.storage_id);
-
-      if (metadataError) throw metadataError;
-
+      await deleteGithubImage(image, githubToken);
       await fetchData();
     } catch (error) {
       console.error('Error deleting image:', error);
@@ -197,24 +151,32 @@ const ImageManager: React.FC = () => {
     }
   };
 
-  const handleUpdateMetadata = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleUpdateMetadata = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!githubToken) {
+      alert('Save a GitHub token first to edit metadata.');
+      return;
+    }
+
     if (!editingImage) return;
 
-    const form = e.currentTarget;
+    const form = event.currentTarget;
     const formData = new FormData(form);
+    const categoryId = (formData.get('category_id') as string) || '';
+    const category = categories.find((item) => item.id === categoryId);
 
     try {
-      const { error } = await supabase
-        .from('image_metadata')
-        .upsert({
-          storage_id: editingImage.storage_id,
-          display_name: formData.get('display_name') as string,
-          category_id: formData.get('category_id') as string || null,
-          description: formData.get('description') as string
-        });
-
-      if (error) throw error;
+      await updateGithubImageMetadata(
+        editingImage.id,
+        {
+          display_name: (formData.get('display_name') as string) || editingImage.display_name,
+          category_id: categoryId || null,
+          description: ((formData.get('description') as string) || '').trim() || null,
+        },
+        githubToken,
+        category?.name,
+      );
 
       await fetchData();
       setIsMetadataFormOpen(false);
@@ -236,49 +198,129 @@ const ImageManager: React.FC = () => {
   };
 
   const filteredImages = selectedCategory
-    ? images.filter(img => img.category_id === selectedCategory)
+    ? images.filter((image) => image.category_id === selectedCategory)
     : images;
+
+  const selectedCategoryLabel = useMemo(
+    () => categories.find((category) => category.id === selectedCategory)?.name || 'All Categories',
+    [categories, selectedCategory],
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ocean-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-display font-bold text-gray-900">Image Manager</h1>
-          <label className="cursor-pointer bg-ocean-600 text-white px-6 py-3 rounded-lg hover:bg-ocean-700 transition-colors inline-flex items-center">
-            <Upload className="h-5 w-5 mr-2" />
-            Upload Images
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-gray-900">Image Manager</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              GitHub source: <span className="font-medium">{githubImageConfig.owner}/{githubImageConfig.repo}</span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => void fetchData()}
+              disabled={syncing}
+              className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 inline-flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              Sync
+            </button>
+
+            <label className="cursor-pointer bg-ocean-600 text-white px-6 py-3 rounded-lg hover:bg-ocean-700 transition-colors inline-flex items-center">
+              <Upload className="h-5 w-5 mr-2" />
+              Upload Images
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <KeyRound className="h-4 w-4" />
+            <span>GitHub token is required for upload/edit/delete (read-only browsing works without it).</span>
+          </div>
+
+          <div className="grid md:grid-cols-[1fr_auto_auto] gap-3">
             <input
-              type="file"
-              className="hidden"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              disabled={uploading}
+              type="password"
+              value={tokenInput}
+              onChange={(event) => setTokenInput(event.target.value)}
+              placeholder="GitHub token (repo contents: read/write)"
+              className="w-full px-3 py-2 border rounded-lg"
             />
-          </label>
+            <button
+              onClick={saveToken}
+              className="px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 inline-flex items-center justify-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Save Token
+            </button>
+            <button
+              onClick={clearToken}
+              className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+            >
+              Clear
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Token status: {githubToken ? 'Saved locally in this browser' : 'Not saved'}
+          </p>
         </div>
 
-        {/* Category Filter */}
-        <div className="mb-8 flex items-center gap-4">
-          <Filter className="h-5 w-5 text-gray-500" />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid md:grid-cols-2 gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <Filter className="h-5 w-5 text-gray-500" />
+            <select
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Upload className="h-5 w-5 text-gray-500" />
+            <select
+              value={uploadCategory}
+              onChange={(event) => setUploadCategory(event.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-ocean-500 focus:border-ocean-500"
+            >
+              <option value="">Upload to: Uncategorized</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  Upload to: {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Upload Progress */}
         {uploading && Object.keys(uploadProgress).length > 0 && (
           <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Uploading Images...</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Uploading to GitHub...</h3>
             <div className="space-y-4">
               {Object.entries(uploadProgress).map(([filename, progress]) => (
                 <div key={filename} className="space-y-2">
@@ -298,11 +340,14 @@ const ImageManager: React.FC = () => {
           </div>
         )}
 
-        {/* Image Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="mb-4 text-sm text-gray-600">
+          Showing {filteredImages.length} image(s) in <span className="font-medium">{selectedCategoryLabel}</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredImages.map((image) => (
             <div
-              key={image.storage_id}
+              key={image.id}
               className="bg-white rounded-lg shadow-lg overflow-hidden group"
             >
               <div className="aspect-square relative">
@@ -310,17 +355,18 @@ const ImageManager: React.FC = () => {
                   src={image.url}
                   alt={image.display_name}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
                 <button
-                  onClick={() => handleDeleteImage(image)}
+                  onClick={() => void handleDeleteImage(image)}
                   className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900 truncate">
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <h3 className="font-medium text-gray-900 truncate" title={image.display_name}>
                     {image.display_name}
                   </h3>
                   <button
@@ -333,18 +379,21 @@ const ImageManager: React.FC = () => {
                     <Edit2 className="h-4 w-4" />
                   </button>
                 </div>
+
                 {image.category && (
                   <span className="inline-block px-2 py-1 text-xs font-medium text-ocean-600 bg-ocean-50 rounded-full mb-2">
                     {image.category.name}
                   </span>
                 )}
+
                 {image.description && (
                   <p className="text-sm text-gray-500 mb-2 line-clamp-2">
                     {image.description}
                   </p>
                 )}
+
                 <button
-                  onClick={() => copyToClipboard(image.url)}
+                  onClick={() => void copyToClipboard(image.url)}
                   className="flex items-center text-gray-500 hover:text-ocean-600 transition-colors text-sm"
                 >
                   {copiedUrl === image.url ? (
@@ -357,6 +406,7 @@ const ImageManager: React.FC = () => {
               </div>
             </div>
           ))}
+
           {filteredImages.length === 0 && !uploading && (
             <div className="col-span-full flex flex-col items-center justify-center p-12 bg-white rounded-lg shadow-lg">
               <ImageIcon className="h-16 w-16 text-gray-400 mb-4" />
@@ -367,7 +417,6 @@ const ImageManager: React.FC = () => {
           )}
         </div>
 
-        {/* Metadata Edit Modal */}
         {isMetadataFormOpen && editingImage && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
