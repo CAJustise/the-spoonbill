@@ -368,7 +368,7 @@ const MenuContent: React.FC = () => {
           )}
         </div>
       )}
-      <div className="flex justify-between items-start mt-4">
+      <div className={`flex justify-between items-start ${item.image_url ? 'mt-4' : 'mt-1'}`}>
         <div>
           <h4 className="text-xl font-garamond font-medium text-gray-900 mb-1">
             {item.name}
@@ -449,7 +449,7 @@ const MenuContent: React.FC = () => {
                 )}
               </div>
 
-              <div className="grid gap-8">
+              <div className="grid gap-4">
                 {(flightDrinks.length ? flightDrinks : [flightItem]).map((drinkItem) => (
                   <div key={`${flightItem.id}-${drinkItem.id}`}>
                     {renderMenuItemCard(drinkItem, { forceAlcoholIndicator: true })}
@@ -499,7 +499,7 @@ const MenuContent: React.FC = () => {
         </div>
 
         {directItems.length > 0 && (
-          <div className="grid gap-8">
+          <div className="grid gap-4">
             {directItems.map((item) => (
               <div key={item.id}>
                 {renderMenuItemCard(item)}
@@ -547,7 +547,7 @@ const MenuContent: React.FC = () => {
         {subcategoriesWithItems.map((subcategory) => renderSubcategoryContent(subcategory))}
 
         {directCategoryItems.length > 0 && (
-          <div className="grid gap-8">
+          <div className="grid gap-4">
             {directCategoryItems.map((item) => (
               <div key={item.id}>
                 {renderMenuItemCard(item)}
