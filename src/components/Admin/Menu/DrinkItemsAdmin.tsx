@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Edit2, Trash2, ArrowUpDown, Search, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUpDown, Search, Filter, X } from 'lucide-react';
 import { StrengthIndicator } from '../../Menu/StrengthIndicator';
 
 interface MenuItem {
@@ -209,6 +209,21 @@ const DrinkItemsAdmin: React.FC = () => {
     }
   }, [editingItem]);
 
+  useEffect(() => {
+    if (!isFormOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isFormOpen]);
+
+  const closeFormModal = () => {
+    setIsFormOpen(false);
+    setEditingItem(null);
+    setIngredients('');
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -250,10 +265,8 @@ const DrinkItemsAdmin: React.FC = () => {
       }
 
       await fetchData();
-      setIsFormOpen(false);
-      setEditingItem(null);
+      closeFormModal();
       form.reset();
-      setIngredients('');
     } catch (error) {
       console.error('Error saving item:', error);
       alert('Error saving item: ' + (error as Error).message);
@@ -321,233 +334,253 @@ const DrinkItemsAdmin: React.FC = () => {
         </div>
 
         {isFormOpen && (
-          <form 
-            ref={formRef}
-            onSubmit={handleSubmit} 
-            className="bg-white p-6 rounded-lg shadow-lg mb-8"
+          <div
+            className="fixed inset-0 z-50 bg-black/50 p-4 md:p-8 overflow-y-auto"
+            onClick={closeFormModal}
           >
-            <div className="grid gap-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    required
-                    defaultValue={editingItem?.name}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
+            <div
+              className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-white rounded-t-lg">
+                <h2 className="text-xl font-display font-bold text-gray-900">
+                  {editingItem ? 'Edit Drink Item' : 'Add Drink Item'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={closeFormModal}
+                  className="text-gray-500 hover:text-gray-700"
+                  aria-label="Close form"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Main Category
-                  </label>
-                  <select
-                    value={selectedMainCategory}
-                    onChange={handleMainCategoryChange}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  >
-                    <option value="">Select Main Category</option>
-                    {mainCategories.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <form
+                ref={formRef}
+                onSubmit={handleSubmit}
+                className="p-6"
+              >
+                <div className="grid gap-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        required
+                        defaultValue={editingItem?.name}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
 
-                {selectedMainCategory && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Subcategory
-                    </label>
-                    <select
-                      name="category_id"
-                      required
-                      defaultValue={editingItem?.category_id || ''}
-                      className="w-full px-3 py-2 border rounded-lg"
-                    >
-                      <option value="">Select Subcategory</option>
-                      {getSubcategories(selectedMainCategory).map(category => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Main Category
+                      </label>
+                      <select
+                        value={selectedMainCategory}
+                        onChange={handleMainCategoryChange}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      >
+                        <option value="">Select Main Category</option>
+                        {mainCategories.map(category => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedMainCategory && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Subcategory
+                        </label>
+                        <select
+                          name="category_id"
+                          required
+                          defaultValue={editingItem?.category_id || ''}
+                          className="w-full px-3 py-2 border rounded-lg"
+                        >
+                          <option value="">Select Subcategory</option>
+                          {getSubcategories(selectedMainCategory).map(category => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {selectedMainCategory && mainCategories.find(cat => cat.id === selectedMainCategory)?.name === 'Wine' ? (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Glass Price
+                          </label>
+                          <input
+                            type="number"
+                            name="price"
+                            step="0.01"
+                            defaultValue={editingItem?.price || ''}
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Bottle Price
+                          </label>
+                          <input
+                            type="number"
+                            name="bottle_price"
+                            step="0.01"
+                            defaultValue={editingItem?.bottle_price || ''}
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Price
+                        </label>
+                        <input
+                          type="number"
+                          name="price"
+                          step="0.01"
+                          defaultValue={editingItem?.price || ''}
+                          className="w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {selectedMainCategory && mainCategories.find(cat => cat.id === selectedMainCategory)?.name === 'Wine' ? (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Glass Price
-                      </label>
-                      <input
-                        type="number"
-                        name="price"
-                        step="0.01"
-                        defaultValue={editingItem?.price || ''}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Bottle Price
-                      </label>
-                      <input
-                        type="number"
-                        name="bottle_price"
-                        step="0.01"
-                        defaultValue={editingItem?.bottle_price || ''}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                  </>
-                ) : (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price
+                      Description
                     </label>
-                    <input
-                      type="number"
-                      name="price"
-                      step="0.01"
-                      defaultValue={editingItem?.price || ''}
+                    <textarea
+                      name="description"
+                      rows={3}
+                      defaultValue={editingItem?.description || ''}
                       className="w-full px-3 py-2 border rounded-lg"
                     />
                   </div>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  rows={3}
-                  defaultValue={editingItem?.description || ''}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Alcohol Content (1-5)
+                    </label>
+                    <select
+                      name="alcohol_content"
+                      defaultValue={editingItem?.alcohol_content || ''}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="">None</option>
+                      <option value="1">1 - Light</option>
+                      <option value="2">2 - Mild</option>
+                      <option value="3">3 - Medium</option>
+                      <option value="4">4 - Strong</option>
+                      <option value="5">5 - Very Strong</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Alcohol Content (1-5)
-                </label>
-                <select
-                  name="alcohol_content"
-                  defaultValue={editingItem?.alcohol_content || ''}
-                  className="w-full px-3 py-2 border rounded-lg"
-                >
-                  <option value="">None</option>
-                  <option value="1">1 - Light</option>
-                  <option value="2">2 - Mild</option>
-                  <option value="3">3 - Medium</option>
-                  <option value="4">4 - Strong</option>
-                  <option value="5">5 - Very Strong</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Garnish
+                    </label>
+                    <input
+                      type="text"
+                      name="garnish"
+                      defaultValue={editingItem?.garnish || ''}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., Mint sprig and lime wheel"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Garnish
-                </label>
-                <input
-                  type="text"
-                  name="garnish"
-                  defaultValue={editingItem?.garnish || ''}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="e.g., Mint sprig and lime wheel"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Image URL
+                    </label>
+                    <input
+                      type="text"
+                      name="image_url"
+                      defaultValue={editingItem?.image_url || ''}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Image URL
-                </label>
-                <input
-                  type="text"
-                  name="image_url"
-                  defaultValue={editingItem?.image_url || ''}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ingredients (one per line)
-                </label>
-                <textarea
-                  value={ingredients}
-                  onChange={(e) => setIngredients(e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border rounded-lg font-mono text-sm"
-                  placeholder="Rum
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ingredients (one per line)
+                    </label>
+                    <textarea
+                      value={ingredients}
+                      onChange={(e) => setIngredients(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 border rounded-lg font-mono text-sm"
+                      placeholder="Rum
 Fresh lime juice
 Simple syrup
 Mint leaves"
-                />
-              </div>
+                    />
+                  </div>
 
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="show_price"
-                    defaultChecked={editingItem?.show_price ?? true}
-                    className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
-                  />
-                  <span className="text-sm text-gray-700">Show Price</span>
-                </label>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="show_price"
+                        defaultChecked={editingItem?.show_price ?? true}
+                        className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
+                      />
+                      <span className="text-sm text-gray-700">Show Price</span>
+                    </label>
 
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="show_description"
-                    defaultChecked={editingItem?.show_description ?? false}
-                    className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
-                  />
-                  <span className="text-sm text-gray-700">Show Description</span>
-                </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="show_description"
+                        defaultChecked={editingItem?.show_description ?? false}
+                        className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
+                      />
+                      <span className="text-sm text-gray-700">Show Description</span>
+                    </label>
 
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    defaultChecked={editingItem?.active ?? true}
-                    className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
-                  />
-                  <span className="text-sm text-gray-700">Active</span>
-                </label>
-              </div>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="active"
+                        defaultChecked={editingItem?.active ?? true}
+                        className="rounded border-gray-300 text-ocean-600 focus:ring-ocean-500"
+                      />
+                      <span className="text-sm text-gray-700">Active</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={closeFormModal}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700"
+                  >
+                    {editingItem ? 'Update' : 'Create'} Item
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="flex justify-end gap-4 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingItem(null);
-                  setIngredients('');
-                }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700"
-              >
-                {editingItem ? 'Update' : 'Create'} Item
-              </button>
-            </div>
-          </form>
+          </div>
         )}
 
         <div className="bg-white p-4 rounded-lg shadow-lg mb-6">
