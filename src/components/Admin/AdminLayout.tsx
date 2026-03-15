@@ -214,7 +214,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
       if (allowedOperationItems.length > 0) {
         nextSections.push({
           id: 'operations',
-          heading: 'Operations',
+          heading: 'Reservations',
           collapsible: true,
           items: allowedOperationItems,
         });
@@ -224,7 +224,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
     if (canAccessSection(capabilities, 'content_management')) {
       nextSections.push({
         id: 'content_management',
-        heading: 'Content Management',
+        heading: 'Operations',
         collapsible: true,
         items: CONTENT_ITEMS,
       });
