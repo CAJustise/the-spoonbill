@@ -29,6 +29,7 @@ const ALIAS_TABLE_MAP: Record<string, string> = {
 
 const DEFAULT_ADMIN_EMAIL = 'admin@spoonbill.local';
 const DEFAULT_ADMIN_PASSWORD = 'spoonbill-admin';
+const TASTING_MENU_MIGRATION_FLAG = 'tastings_seed_20260315';
 
 const nowIso = () => new Date().toISOString();
 
@@ -507,75 +508,419 @@ const seedMenu = () => {
 };
 
 const seedTastings = () => {
+  const withTimestamps = (record: PlainObject) => ({
+    ...record,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  });
+
   const menus = [
     {
-      id: 'tm_omakase',
-      name: 'Spoonbill Tasting Journey',
-      description: 'A five-course guided pairing highlighting our seasonal menu.',
-      price: 115,
+      id: 'tm_prix_fixe',
+      name: 'Prix Fixe',
+      description: 'Three-course prix fixe menu with starter, main, and dessert choices.',
+      price: 85,
       menu_type: 'prix_fixe',
       display_order: 1,
       active: true,
-      created_at: nowIso(),
-      updated_at: nowIso(),
     },
-  ];
+    {
+      id: 'tm_tasting_tropics',
+      name: 'Tasting - Tropics',
+      description: 'A tropical tasting progression from amuse-bouche to dessert.',
+      price: 125,
+      menu_type: 'prix_fixe',
+      display_order: 2,
+      active: true,
+    },
+    {
+      id: 'tm_tasting_captains_table',
+      name: 'Tasting - Captains Table',
+      description: "A captain's table experience with premium seafood-forward courses.",
+      price: 175,
+      menu_type: 'prix_fixe',
+      display_order: 3,
+      active: true,
+    },
+  ].map(withTimestamps);
 
   const courses = [
     {
-      id: 'tc_first',
-      menu_id: 'tm_omakase',
-      name: 'First Course',
-      description: 'Bright and citrus-driven opener.',
+      id: 'tc_prix_starter',
+      menu_id: 'tm_prix_fixe',
+      name: 'Starter Choices',
+      description: null,
       display_order: 1,
-      allows_choice: false,
-      created_at: nowIso(),
-      updated_at: nowIso(),
+      allows_choice: true,
     },
     {
-      id: 'tc_second',
-      menu_id: 'tm_omakase',
-      name: 'Main Course',
-      description: 'Chef-selected centerpiece.',
+      id: 'tc_prix_main',
+      menu_id: 'tm_prix_fixe',
+      name: 'Main Choices',
+      description: null,
       display_order: 2,
       allows_choice: true,
-      created_at: nowIso(),
-      updated_at: nowIso(),
     },
-  ];
+    {
+      id: 'tc_prix_dessert',
+      menu_id: 'tm_prix_fixe',
+      name: 'Dessert',
+      description: null,
+      display_order: 3,
+      allows_choice: true,
+    },
+    {
+      id: 'tc_tropics_amuse',
+      menu_id: 'tm_tasting_tropics',
+      name: 'Amuse-Bouche',
+      description: null,
+      display_order: 1,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_tropics_first',
+      menu_id: 'tm_tasting_tropics',
+      name: 'First Course',
+      description: null,
+      display_order: 2,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_tropics_second',
+      menu_id: 'tm_tasting_tropics',
+      name: 'Second Course',
+      description: null,
+      display_order: 3,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_tropics_third',
+      menu_id: 'tm_tasting_tropics',
+      name: 'Third Course',
+      description: null,
+      display_order: 4,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_tropics_dessert',
+      menu_id: 'tm_tasting_tropics',
+      name: 'Dessert',
+      description: null,
+      display_order: 5,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_captains_amuse',
+      menu_id: 'tm_tasting_captains_table',
+      name: 'Amuse-Bouche',
+      description: null,
+      display_order: 1,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_captains_first',
+      menu_id: 'tm_tasting_captains_table',
+      name: 'First Course',
+      description: null,
+      display_order: 2,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_captains_main',
+      menu_id: 'tm_tasting_captains_table',
+      name: 'Main Course',
+      description: null,
+      display_order: 3,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_captains_second',
+      menu_id: 'tm_tasting_captains_table',
+      name: 'Second Course',
+      description: null,
+      display_order: 4,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_captains_third',
+      menu_id: 'tm_tasting_captains_table',
+      name: 'Third Course',
+      description: null,
+      display_order: 5,
+      allows_choice: false,
+    },
+    {
+      id: 'tc_captains_dessert',
+      menu_id: 'tm_tasting_captains_table',
+      name: 'Dessert',
+      description: null,
+      display_order: 6,
+      allows_choice: false,
+    },
+  ].map(withTimestamps);
 
   const items = [
     {
-      id: 'ti_first',
-      course_id: 'tc_first',
-      name: 'Madai Sashimi',
-      description: 'Finger lime, shiso oil, and sea salt.',
-      ingredients: ['Madai', 'Finger Lime', 'Shiso'],
+      id: 'ti_prix_starter_ceviche',
+      course_id: 'tc_prix_starter',
+      name: 'Citrus Ceviche Mahi-Mah',
+      description: 'Fresh mahi-mahi marinated in a vibrant citrus blend, served with tropical fruit salsa.',
+      ingredients: [],
       allergens: ['Fish'],
       is_vegetarian: false,
       is_vegan: false,
       is_gluten_free: true,
       display_order: 1,
       active: true,
-      created_at: nowIso(),
-      updated_at: nowIso(),
     },
     {
-      id: 'ti_second',
-      course_id: 'tc_second',
-      name: 'Black Cod',
-      description: 'Charred pineapple glaze and coconut rice.',
-      ingredients: ['Black Cod', 'Pineapple', 'Coconut'],
+      id: 'ti_prix_starter_lobster_martini',
+      course_id: 'tc_prix_starter',
+      name: 'Chilled Lobster Martini',
+      description: 'Succulent lobster meat served chilled with avocado and mango relish.',
+      ingredients: [],
+      allergens: ['Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 2,
+      active: true,
+    },
+    {
+      id: 'ti_prix_starter_coconut_shrimp',
+      course_id: 'tc_prix_starter',
+      name: 'Coconut Shrimp with Mango-Habanero Sauce',
+      description: 'Crispy coconut shrimp paired with a sweet and spicy mango-habanero sauce.',
+      ingredients: [],
+      allergens: ['Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: false,
+      display_order: 3,
+      active: true,
+    },
+    {
+      id: 'ti_prix_main_scallops',
+      course_id: 'tc_prix_main',
+      name: 'Pan-Seared Scallops with Mango-Lime Relish',
+      description: 'Plump scallops seared to perfection, topped with a bright mango-lime relish.',
+      ingredients: [],
+      allergens: ['Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_prix_main_jerk_chicken',
+      course_id: 'tc_prix_main',
+      name: 'Jerk-Spiced Chicken Breast with Coconut Rice',
+      description: 'Juicy chicken breast infused with Caribbean jerk spices, served over coconut rice.',
+      ingredients: [],
+      allergens: [],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 2,
+      active: true,
+    },
+    {
+      id: 'ti_prix_main_taro_curry',
+      course_id: 'tc_prix_main',
+      name: 'Vegetarian Taro Root Curry (can be made vegan)',
+      description: 'Creamy taro root curry with tropical vegetables.',
+      ingredients: [],
+      allergens: [],
+      is_vegetarian: true,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 3,
+      active: true,
+    },
+    {
+      id: 'ti_prix_dessert_passion_brulee',
+      course_id: 'tc_prix_dessert',
+      name: 'Passion Fruit Creme Brulee',
+      description: 'Silky custard infused with passion fruit, topped with caramelized sugar.',
+      ingredients: [],
+      allergens: ['Dairy', 'Egg'],
+      is_vegetarian: true,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_prix_dessert_tres_leches',
+      course_id: 'tc_prix_dessert',
+      name: 'Coconut Tres Leches Cake',
+      description: 'Moist coconut cake soaked in three milks, topped with toasted coconut.',
+      ingredients: [],
+      allergens: ['Dairy'],
+      is_vegetarian: true,
+      is_vegan: false,
+      is_gluten_free: false,
+      display_order: 2,
+      active: true,
+    },
+    {
+      id: 'ti_prix_dessert_pineapple_icecream',
+      course_id: 'tc_prix_dessert',
+      name: 'Grilled Pineapple with Rum Caramel and Coconut Ice Cream',
+      description: 'Caramelized pineapple with rum caramel and coconut ice cream.',
+      ingredients: [],
+      allergens: ['Dairy'],
+      is_vegetarian: true,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 3,
+      active: true,
+    },
+    {
+      id: 'ti_tropics_amuse_oyster',
+      course_id: 'tc_tropics_amuse',
+      name: 'Oyster Selection (with tropical mignonettes)',
+      description: 'Fresh oysters served with an array of tropical mignonettes.',
+      ingredients: [],
+      allergens: ['Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_tropics_first_ceviche_trio',
+      course_id: 'tc_tropics_first',
+      name: 'Tropical Ceviche Trio (shrimp, mahi-mahi, and octopus)',
+      description: 'A refreshing medley of shrimp, mahi-mahi, and octopus cured in citrus juices.',
+      ingredients: [],
+      allergens: ['Fish', 'Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_tropics_second_shrimp_lollipops',
+      course_id: 'tc_tropics_second',
+      name: 'Coconut Shrimp Lollipops',
+      description: 'Coconut-fried shrimp served on sugarcane skewers with mango-chili dipping sauce.',
+      ingredients: [],
+      allergens: ['Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: false,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_tropics_third_seafood_chowder',
+      course_id: 'tc_tropics_third',
+      name: 'Tropical Seafood Chowder',
+      description: 'A medley of fresh seafood in a creamy coconut broth with island spices.',
+      ingredients: [],
+      allergens: ['Fish', 'Shellfish', 'Dairy'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_tropics_dessert_rum_skewers',
+      course_id: 'tc_tropics_dessert',
+      name: 'Grilled Pineapple & Banana Rum Skewers',
+      description: 'Caramelized pineapple and banana skewers with rum-infused whipped cream.',
+      ingredients: [],
+      allergens: ['Dairy'],
+      is_vegetarian: true,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_captains_amuse_hamachi',
+      course_id: 'tc_captains_amuse',
+      name: 'Citrus-Cured Hamachi',
+      description: 'Delicate slices of hamachi infused with bright citrus flavors.',
+      ingredients: [],
       allergens: ['Fish'],
       is_vegetarian: false,
       is_vegan: false,
       is_gluten_free: true,
       display_order: 1,
       active: true,
-      created_at: nowIso(),
-      updated_at: nowIso(),
     },
-  ];
+    {
+      id: 'ti_captains_first_poke_tower',
+      course_id: 'tc_captains_first',
+      name: 'Ahi Tuna Poke Tower',
+      description: 'Layers of fresh ahi tuna, avocado, mango, and crispy wontons.',
+      ingredients: [],
+      allergens: ['Fish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: false,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_captains_main_bluefin',
+      course_id: 'tc_captains_main',
+      name: 'Seared Bluefin Tuna with Tropical Salsa',
+      description: 'Rare bluefin tuna with vibrant tropical fruit salsa.',
+      ingredients: [],
+      allergens: ['Fish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_captains_second_octopus',
+      course_id: 'tc_captains_second',
+      name: 'Grilled Octopus with Papaya Salad',
+      description: 'Tender char-grilled octopus with a vibrant papaya salad.',
+      ingredients: [],
+      allergens: ['Shellfish'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_captains_third_lobster_bisque',
+      course_id: 'tc_captains_third',
+      name: 'Lobster Bisque with Coconut Foam',
+      description: 'Velvety lobster soup crowned with delicate coconut foam.',
+      ingredients: [],
+      allergens: ['Shellfish', 'Dairy'],
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: true,
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: 'ti_captains_dessert_lava',
+      course_id: 'tc_captains_dessert',
+      name: 'Chocolate Lava Cake with Macadamia Nut Brittle',
+      description: 'Decadent chocolate cake with a molten center and macadamia brittle.',
+      ingredients: [],
+      allergens: ['Dairy', 'Nuts'],
+      is_vegetarian: true,
+      is_vegan: false,
+      is_gluten_free: false,
+      display_order: 1,
+      active: true,
+    },
+  ].map(withTimestamps);
 
   return { menus, courses, items };
 };
@@ -1957,6 +2302,103 @@ const ensureCodaFoodImport = (db: PlainObject) => {
   return changed;
 };
 
+const ensureTastingMenuImport = (db: PlainObject) => {
+  let changed = false;
+
+  if (!Array.isArray(db.tasting_menus)) {
+    db.tasting_menus = [];
+    changed = true;
+  }
+
+  if (!Array.isArray(db.tasting_menu_courses)) {
+    db.tasting_menu_courses = [];
+    changed = true;
+  }
+
+  if (!Array.isArray(db.tasting_menu_items)) {
+    db.tasting_menu_items = [];
+    changed = true;
+  }
+
+  if (
+    typeof db._migration_flags !== 'object' ||
+    db._migration_flags === null ||
+    Array.isArray(db._migration_flags)
+  ) {
+    db._migration_flags = {};
+    changed = true;
+  }
+
+  if (db._migration_flags[TASTING_MENU_MIGRATION_FLAG] === true) {
+    return changed;
+  }
+
+  const tastingSeed = seedTastings();
+  const targetMenuIds = new Set(tastingSeed.menus.map((menu) => menu.id));
+  const targetCourseIds = new Set(tastingSeed.courses.map((course) => course.id));
+  const targetItemIds = new Set(tastingSeed.items.map((item) => item.id));
+
+  const legacyCourseIds = new Set(
+    db.tasting_menu_courses
+      .filter(
+        (course: PlainObject) =>
+          targetMenuIds.has(course.menu_id) ||
+          course.menu_id === 'tm_omakase' ||
+          course.menu_id === 'tm_legacy_tasting_journey',
+      )
+      .map((course: PlainObject) => course.id),
+  );
+
+  const previousCourseCount = db.tasting_menu_courses.length;
+  db.tasting_menu_courses = db.tasting_menu_courses.filter(
+    (course: PlainObject) => !legacyCourseIds.has(course.id) && !targetCourseIds.has(course.id),
+  );
+  if (db.tasting_menu_courses.length !== previousCourseCount) {
+    changed = true;
+  }
+
+  const previousItemCount = db.tasting_menu_items.length;
+  db.tasting_menu_items = db.tasting_menu_items.filter(
+    (item: PlainObject) =>
+      !legacyCourseIds.has(item.course_id) &&
+      !targetCourseIds.has(item.course_id) &&
+      !targetItemIds.has(item.id),
+  );
+  if (db.tasting_menu_items.length !== previousItemCount) {
+    changed = true;
+  }
+
+  const previousMenuCount = db.tasting_menus.length;
+  db.tasting_menus = db.tasting_menus.filter((menu: PlainObject) => !targetMenuIds.has(menu.id));
+  if (db.tasting_menus.length !== previousMenuCount) {
+    changed = true;
+  }
+
+  for (const menu of db.tasting_menus) {
+    const menuName = normalizeFoodName(String(menu.name || '')).toLowerCase();
+    if (
+      menu.id === 'tm_omakase' ||
+      menu.id === 'tm_legacy_tasting_journey' ||
+      menuName === 'spoonbill tasting journey'
+    ) {
+      if (menu.active !== false) {
+        menu.active = false;
+        menu.updated_at = nowIso();
+        changed = true;
+      }
+    }
+  }
+
+  db.tasting_menus.push(...clone(tastingSeed.menus));
+  db.tasting_menu_courses.push(...clone(tastingSeed.courses));
+  db.tasting_menu_items.push(...clone(tastingSeed.items));
+  changed = true;
+
+  db._migration_flags[TASTING_MENU_MIGRATION_FLAG] = true;
+
+  return changed;
+};
+
 const migrateDb = (db: PlainObject) => {
   let changed = false;
   const eventImageByTitle: Record<string, string> = {
@@ -2027,6 +2469,10 @@ const migrateDb = (db: PlainObject) => {
 
       return nextEvent;
     });
+  }
+
+  if (ensureTastingMenuImport(db)) {
+    changed = true;
   }
 
   if (ensureCodaBeverageImport(db)) {
