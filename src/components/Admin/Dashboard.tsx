@@ -8,6 +8,7 @@ import {
   Clock3,
   PauseCircle,
   PlayCircle,
+  Plus,
   ShieldAlert,
   Users,
 } from 'lucide-react';
@@ -39,6 +40,11 @@ interface WorkforceRole {
   name: string;
   department_id?: string;
   hourly_rate?: number;
+}
+
+interface WorkforceStation {
+  id: string;
+  name: string;
 }
 
 interface WorkforceEmployeeRole {
@@ -188,6 +194,7 @@ const Dashboard: React.FC = () => {
   const [currentUserName, setCurrentUserName] = useState('Manager');
   const [shifts, setShifts] = useState<WorkforceShift[]>([]);
   const [roles, setRoles] = useState<WorkforceRole[]>([]);
+  const [stations, setStations] = useState<WorkforceStation[]>([]);
   const [employeeRoles, setEmployeeRoles] = useState<WorkforceEmployeeRole[]>([]);
   const [departments, setDepartments] = useState<WorkforceDepartment[]>([]);
   const [employees, setEmployees] = useState<WorkforceEmployee[]>([]);
@@ -200,6 +207,7 @@ const Dashboard: React.FC = () => {
   const [tasks, setTasks] = useState<WorkforceTask[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItemRecord[]>([]);
   const [showLogEntryForm, setShowLogEntryForm] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
   const [showEightySixForm, setShowEightySixForm] = useState(false);
   const [logDraft, setLogDraft] = useState({
     category: 'operations',
@@ -209,6 +217,14 @@ const Dashboard: React.FC = () => {
   const [eightySixDraft, setEightySixDraft] = useState({
     item_id: '',
     note: '',
+  });
+  const [taskDraft, setTaskDraft] = useState({
+    title: '',
+    assigned_role_id: '',
+    station_id: '',
+    due_date: new Date().toISOString().slice(0, 10),
+    due_time: '18:00',
+    critical: false,
   });
 
   const loadDashboardData = useCallback(
@@ -220,6 +236,7 @@ const Dashboard: React.FC = () => {
       const [
         shiftsRes,
         rolesRes,
+        stationsRes,
         employeeRolesRes,
         departmentsRes,
         employeesRes,
@@ -234,6 +251,7 @@ const Dashboard: React.FC = () => {
       ] = await Promise.all([
         supabase.from('workforce_shifts').select('*').order('start_time'),
         supabase.from('workforce_roles').select('*').order('name'),
+        supabase.from('workforce_stations').select('*').order('name'),
         supabase.from('workforce_employee_roles').select('*').order('created_at'),
         supabase.from('workforce_departments').select('*').order('name'),
         supabase.from('workforce_employees').select('*').order('name'),
@@ -250,6 +268,7 @@ const Dashboard: React.FC = () => {
       setCapabilities(nextCapabilities);
       setShifts((shiftsRes.data as WorkforceShift[]) || []);
       setRoles((rolesRes.data as WorkforceRole[]) || []);
+      setStations((stationsRes.data as WorkforceStation[]) || []);
       setEmployeeRoles((employeeRolesRes.data as WorkforceEmployeeRole[]) || []);
       setDepartments((departmentsRes.data as WorkforceDepartment[]) || []);
       setEmployees((employeesRes.data as WorkforceEmployee[]) || []);
@@ -317,6 +336,15 @@ const Dashboard: React.FC = () => {
     [roles],
   );
 
+  const stationById = useMemo(
+    () =>
+      stations.reduce((accumulator, station) => {
+        accumulator[station.id] = station;
+        return accumulator;
+      }, {} as Record<string, WorkforceStation>),
+    [stations],
+  );
+
   const departmentById = useMemo(
     () =>
       departments.reduce((accumulator, department) => {
@@ -338,6 +366,16 @@ const Dashboard: React.FC = () => {
       }, {} as Record<string, WorkforceEmployeeRole[]>),
     [employeeRoles],
   );
+
+  useEffect(() => {
+    if (!taskDraft.assigned_role_id && roles.length > 0) {
+      setTaskDraft((current) => ({ ...current, assigned_role_id: roles[0].id }));
+    }
+
+    if (!taskDraft.station_id && stations.length > 0) {
+      setTaskDraft((current) => ({ ...current, station_id: stations[0].id }));
+    }
+  }, [roles, stations, taskDraft.assigned_role_id, taskDraft.station_id]);
 
   const roleRateByEmployeeIdRoleId = useMemo(
     () =>
@@ -585,6 +623,63 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const createStationTask = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!taskDraft.title.trim()) {
+      alert('Task title is required.');
+      return;
+    }
+
+    const dueTime = `${taskDraft.due_date}T${taskDraft.due_time}:00`;
+
+    setSavingAction(true);
+    try {
+      const { error } = await supabase.from('workforce_tasks').insert([
+        {
+          title: taskDraft.title.trim(),
+          assigned_role_id: taskDraft.assigned_role_id || null,
+          location_id: 'wf_loc_main',
+          station_id: taskDraft.station_id || null,
+          due_time: dueTime,
+          completion_status: 'open',
+          critical: taskDraft.critical,
+        },
+      ]);
+      if (error) throw error;
+
+      setTaskDraft((current) => ({ ...current, title: '', critical: false }));
+      setShowTaskForm(false);
+      await refreshAfterAction();
+    } catch (error) {
+      alert(`Failed to create task: ${(error as Error).message}`);
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const completeStationTask = async (task: WorkforceTask) => {
+    if (String(task.completion_status || '').toLowerCase() === 'completed') return;
+
+    setSavingAction(true);
+    try {
+      const { error } = await supabase
+        .from('workforce_tasks')
+        .update({
+          completion_status: 'completed',
+          completed_by: currentUserName || currentUserEmail || 'Manager',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', task.id);
+      if (error) throw error;
+
+      await refreshAfterAction();
+    } catch (error) {
+      alert(`Failed to complete task: ${(error as Error).message}`);
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
   const markItemEightySix = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!eightySixDraft.item_id) {
@@ -826,7 +921,7 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50 pt-24">
       <div className="max-w-none px-4 py-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold text-gray-900">Operations Dashboard</h1>
+          <h1 className="text-3xl font-display font-bold text-gray-900">Nest</h1>
           <p className="text-gray-600 font-garamond">Live view of scheduling, labor, reservations, alerts, and shift handoff intelligence.</p>
         </div>
 
@@ -1126,23 +1221,133 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-display font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-                Station Alerts
-              </h2>
-              <div className="space-y-3">
-                {stationAlerts.slice(0, 8).map((alert) => (
-                  <div key={alert.id} className="border border-gray-100 rounded-lg p-3">
-                    <div className="text-sm font-medium text-gray-900">{alert.title}</div>
-                    <div className="text-xs text-gray-500">Due {formatDateTime(alert.due_time)}</div>
+            <div className="bg-white rounded-lg shadow p-6 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-display font-bold text-gray-900 flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5 text-ocean-600" />
+                    Station Tasks
+                  </h2>
+                  <div className="text-xs text-gray-500 mt-1">Open alerts: {stationAlerts.length}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTaskForm((current) => !current)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-ocean-200 rounded-md text-ocean-700 hover:bg-ocean-50 text-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Task
+                </button>
+              </div>
+
+              {showTaskForm && (
+                <form onSubmit={(event) => void createStationTask(event)} className="grid grid-cols-1 gap-2 bg-gray-50 border border-gray-100 rounded-lg p-3">
+                  <input
+                    value={taskDraft.title}
+                    onChange={(event) => setTaskDraft((current) => ({ ...current, title: event.target.value }))}
+                    placeholder="Task title"
+                    className="px-3 py-2 border rounded-lg"
+                    required
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={taskDraft.assigned_role_id}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, assigned_role_id: event.target.value }))}
+                      className="px-3 py-2 border rounded-lg"
+                    >
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={taskDraft.station_id}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, station_id: event.target.value }))}
+                      className="px-3 py-2 border rounded-lg"
+                    >
+                      {stations.map((station) => (
+                        <option key={station.id} value={station.id}>
+                          {station.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ))}
-                {!stationAlerts.length && (
-                  <div className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg p-3">
-                    No active station alerts.
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={taskDraft.due_date}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, due_date: event.target.value }))}
+                      className="px-3 py-2 border rounded-lg"
+                    />
+                    <input
+                      type="time"
+                      value={taskDraft.due_time}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, due_time: event.target.value }))}
+                      className="px-3 py-2 border rounded-lg"
+                    />
                   </div>
-                )}
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={taskDraft.critical}
+                      onChange={(event) => setTaskDraft((current) => ({ ...current, critical: event.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    Critical task
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={savingAction}
+                    className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
+                  >
+                    Save Task
+                  </button>
+                </form>
+              )}
+
+              <div className="space-y-2">
+                {tasks
+                  .slice()
+                  .sort((a, b) => String(a.due_time || '').localeCompare(String(b.due_time || '')))
+                  .slice(0, 12)
+                  .map((task) => {
+                    const completed = String(task.completion_status || '').toLowerCase() === 'completed';
+                    const isAlert = stationAlerts.some((alert) => alert.id === task.id);
+                    return (
+                      <div key={task.id} className="border border-gray-100 rounded-lg p-3 flex items-center justify-between gap-3">
+                        <div>
+                          <div className={`text-sm font-medium ${completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                            {task.title}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {roleById[task.assigned_role_id || '']?.name || 'Role'} • {stationById[task.station_id || '']?.name || 'Station'}
+                          </div>
+                          <div className="text-xs text-gray-500">Due {formatDateTime(task.due_time)}</div>
+                          {isAlert && !completed && (
+                            <div className="mt-1 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                              <AlertTriangle className="h-3 w-3" />
+                              Alert
+                            </div>
+                          )}
+                        </div>
+                        {!completed ? (
+                          <button
+                            type="button"
+                            onClick={() => void completeStationTask(task)}
+                            disabled={savingAction}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-green-200 rounded-md text-green-700 hover:bg-green-50 text-sm disabled:opacity-60"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Complete
+                          </button>
+                        ) : (
+                          <span className="text-sm text-green-700">Done</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                {!tasks.length && <div className="text-sm text-gray-500">No station tasks yet.</div>}
               </div>
             </div>
           </section>

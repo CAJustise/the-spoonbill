@@ -34,6 +34,7 @@ import {
   type PortalCapabilities,
 } from '../../lib/bohRoles';
 import logoNavy from '../../assets/SpoonbillLogoDark.png';
+import { BUSINESS_SETTINGS_UPDATED_EVENT, getBusinessSettings } from '../../lib/businessSettings';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -84,7 +85,7 @@ const OPERATIONS_ITEMS: NavItem[] = [
 ];
 
 const WORKFORCE_ITEMS: NavItem[] = [
-  { to: '/admin/workforce', label: 'Team + Labor', icon: Users },
+  { to: '/admin/workforce', label: 'Team', icon: Users },
 ];
 
 const CONTENT_ITEMS: NavItem[] = [
@@ -141,6 +142,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
   const [currentUserId, setCurrentUserId] = useState('');
   const [sectionCollapsed, setSectionCollapsed] = useState<Record<string, boolean>>({});
   const [capabilities, setCapabilities] = useState<PortalCapabilities>(EMPTY_CAPABILITIES);
+  const [adminLogoUrl, setAdminLogoUrl] = useState('');
+  const [businessName, setBusinessName] = useState('The Spoonbill Lounge');
 
   useEffect(() => {
     let active = true;
@@ -195,11 +198,28 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
     };
   }, [navigate, requiredCapability, requiredSection]);
 
+  useEffect(() => {
+    const syncBusinessSettings = () => {
+      const settings = getBusinessSettings();
+      setAdminLogoUrl(String(settings.businessLogoUrl || '').trim());
+      setBusinessName(String(settings.businessName || 'The Spoonbill Lounge').trim() || 'The Spoonbill Lounge');
+    };
+
+    syncBusinessSettings();
+    window.addEventListener(BUSINESS_SETTINGS_UPDATED_EVENT, syncBusinessSettings as EventListener);
+    window.addEventListener('storage', syncBusinessSettings);
+
+    return () => {
+      window.removeEventListener(BUSINESS_SETTINGS_UPDATED_EVENT, syncBusinessSettings as EventListener);
+      window.removeEventListener('storage', syncBusinessSettings);
+    };
+  }, []);
+
   const sections = useMemo(() => {
     const nextSections: NavSection[] = [
       {
         id: 'dashboard',
-        items: [{ to: '/admin', label: 'Dashboard', icon: Menu }],
+        items: [{ to: '/admin', label: 'Nest', icon: Menu }],
       },
     ];
 
@@ -230,6 +250,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
       });
     }
 
+    if (canAccessSection(capabilities, 'workforce')) {
+      nextSections.push({ id: 'workforce', heading: 'TEAM', collapsible: true, items: WORKFORCE_ITEMS });
+    }
+
     if (canAccessSection(capabilities, 'career_management')) {
       nextSections.push({
         id: 'career_management',
@@ -241,10 +265,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
 
     if (canAccessSection(capabilities, 'investment')) {
       nextSections.push({ id: 'investment', heading: 'Investment', collapsible: true, items: INVESTMENT_ITEMS });
-    }
-
-    if (canAccessSection(capabilities, 'workforce')) {
-      nextSections.push({ id: 'workforce', heading: 'Workforce OS', collapsible: true, items: WORKFORCE_ITEMS });
     }
 
     if (canAccessSection(capabilities, 'settings')) {
@@ -325,7 +345,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <img src={logoNavy} alt="The Spoonbill" className="h-8 w-auto" />
+                <img src={adminLogoUrl || logoNavy} alt={businessName} className="h-8 w-auto" />
                 <span className="ml-3 text-xl font-garamond font-medium text-gray-900">Admin Portal</span>
               </Link>
             </div>
@@ -344,8 +364,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
         </div>
       </nav>
 
-      <div className="fixed left-0 top-16 h-full w-56 bg-white shadow-lg overflow-y-auto">
-        <nav className="p-4 space-y-2">
+      <div className="fixed left-0 top-16 h-full w-56 bg-white shadow-lg flex flex-col">
+        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
           {sections.map((section) => (
             <React.Fragment key={section.id}>
               {section.heading && (
@@ -382,6 +402,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
             </React.Fragment>
           ))}
         </nav>
+        <div className="px-4 py-3 border-t border-gray-100 text-[11px] text-gray-500 leading-relaxed">
+          <div className="font-semibold text-gray-700">Spoonbill Eyrie</div>
+          <div>Restaurant Solutions</div>
+          <div>Copyright 2026</div>
+        </div>
       </div>
 
       <div className="pl-56 pt-16">{children}</div>

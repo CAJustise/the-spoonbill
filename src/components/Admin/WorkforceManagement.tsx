@@ -2150,9 +2150,9 @@ const WorkforceManagement: React.FC = () => {
       <div className="max-w-none px-4 py-6 space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-display font-bold text-gray-900">BOH Workforce OS</h1>
+            <h1 className="text-3xl font-display font-bold text-gray-900">TEAM</h1>
             <p className="text-gray-600 font-garamond">
-              Unified labor ledger for team, scheduling, live shift control, tasks, compliance, and operations memory.
+              Team profiles, scheduling, labor controls, and workforce operations.
             </p>
           </div>
           <button
@@ -3263,8 +3263,10 @@ const WorkforceManagement: React.FC = () => {
           </div>
         </section>
 
-        <section className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+        {false && (
+          <>
+            <section className="grid lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-display font-bold text-gray-900">Station Tasks</h2>
               <button
@@ -3450,11 +3452,11 @@ const WorkforceManagement: React.FC = () => {
                   </div>
                 ))}
             </div>
-          </div>
-        </section>
+              </div>
+            </section>
 
-        <section className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
+            <section className="grid lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-display font-bold text-gray-900 mb-4">Compliance Alerts</h2>
             <div className="space-y-3">
               {complianceWarnings.map((warning, index) => (
@@ -3496,9 +3498,9 @@ const WorkforceManagement: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+              </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-display font-bold text-gray-900 mb-4">Canonical Event Ledger</h2>
             <p className="text-sm text-gray-600 mb-4">
               Every action is captured as a typed event so scheduling, time tracking, tasks, compliance, and analytics stay in sync.
@@ -3520,35 +3522,37 @@ const WorkforceManagement: React.FC = () => {
                 <div className="text-sm text-gray-500">No events yet.</div>
               )}
             </div>
-          </div>
-        </section>
+              </div>
+            </section>
 
-        <section className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-display font-bold text-gray-900 mb-4">V1 Scope Anchors</h2>
-          <div className="grid md:grid-cols-3 gap-4 text-sm">
-            <div className="rounded-lg border border-gray-100 p-4">
-              <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <Users className="h-4 w-4 text-ocean-600" />
-                Workforce Planning
+            <section className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-display font-bold text-gray-900 mb-4">V1 Scope Anchors</h2>
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div className="rounded-lg border border-gray-100 p-4">
+                  <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-ocean-600" />
+                    Workforce Planning
+                  </div>
+                  <p className="text-gray-600">Team roster, roles, stations, shifts, publish flow, and live reassignment controls.</p>
+                </div>
+                <div className="rounded-lg border border-gray-100 p-4">
+                  <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <Clock3 className="h-4 w-4 text-ocean-600" />
+                    Labor Tracking
+                  </div>
+                  <p className="text-gray-600">Clock in/out ledger, overtime and break signals, and station-level labor cost visibility.</p>
+                </div>
+                <div className="rounded-lg border border-gray-100 p-4">
+                  <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-ocean-600" />
+                    Operations Control
+                  </div>
+                  <p className="text-gray-600">Task execution, manager logbook, and event-backed audit trail for reliable BOH decisions.</p>
+                </div>
               </div>
-              <p className="text-gray-600">Team roster, roles, stations, shifts, publish flow, and live reassignment controls.</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 p-4">
-              <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <Clock3 className="h-4 w-4 text-ocean-600" />
-                Labor Tracking
-              </div>
-              <p className="text-gray-600">Clock in/out ledger, overtime and break signals, and station-level labor cost visibility.</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 p-4">
-              <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-ocean-600" />
-                Operations Control
-              </div>
-              <p className="text-gray-600">Task execution, manager logbook, and event-backed audit trail for reliable BOH decisions.</p>
-            </div>
-          </div>
-        </section>
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
