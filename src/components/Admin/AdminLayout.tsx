@@ -105,7 +105,11 @@ const INVESTMENT_ITEMS: NavItem[] = [
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [{ to: '/admin/settings', label: 'Settings', icon: Settings }];
-const NAV_STATE_COOKIE_PREFIX = 'spoonbill_nav_state_';
+const NAV_STATE_SCOPE = String(import.meta.env.BASE_URL || '/')
+  .trim()
+  .replace(/^\/+|\/+$/g, '')
+  .replace(/[^a-zA-Z0-9_-]/g, '_') || 'root';
+const NAV_STATE_COOKIE_PREFIX = `spoonbill_nav_state_${NAV_STATE_SCOPE}_`;
 
 const readSectionStateCookie = (cookieName: string): Record<string, boolean> => {
   if (typeof document === 'undefined' || !cookieName) return {};

@@ -9,7 +9,13 @@ export interface BusinessSettings {
   businessLogoUrl: string;
 }
 
-export const BUSINESS_SETTINGS_STORAGE_KEY = 'spoonbill_business_settings_v1';
+const STORAGE_SCOPE = String(import.meta.env.BASE_URL || '/')
+  .trim()
+  .replace(/^\/+|\/+$/g, '')
+  .replace(/[^a-zA-Z0-9_-]/g, '_') || 'root';
+
+const LEGACY_BUSINESS_SETTINGS_STORAGE_KEY = 'spoonbill_business_settings_v1';
+export const BUSINESS_SETTINGS_STORAGE_KEY = `spoonbill_business_settings_${STORAGE_SCOPE}_v1`;
 export const BUSINESS_SETTINGS_UPDATED_EVENT = 'spoonbill:business-settings-updated';
 
 const DEFAULT_SETTINGS: BusinessSettings = {
@@ -29,7 +35,14 @@ export const getBusinessSettings = (): BusinessSettings => {
   }
 
   try {
-    const raw = window.localStorage.getItem(BUSINESS_SETTINGS_STORAGE_KEY);
+    let raw = window.localStorage.getItem(BUSINESS_SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      const legacyRaw = window.localStorage.getItem(LEGACY_BUSINESS_SETTINGS_STORAGE_KEY);
+      if (legacyRaw) {
+        raw = legacyRaw;
+        window.localStorage.setItem(BUSINESS_SETTINGS_STORAGE_KEY, legacyRaw);
+      }
+    }
     if (!raw) return getDefaultBusinessSettings();
 
     const parsed = JSON.parse(raw) as Partial<BusinessSettings>;

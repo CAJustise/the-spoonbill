@@ -5,10 +5,26 @@ import { CODA_FOOD_ITEM_SEEDS, CUISINE_SUBCATEGORY_SEEDS } from './codaFoodSeeds
 
 type PlainObject = Record<string, any>;
 
-const DB_KEY = 'spoonbill.local.db.v1';
-const USERS_KEY = 'spoonbill.local.users.v1';
-const SESSION_KEY = 'spoonbill.local.session.v1';
-const FILES_KEY = 'spoonbill.local.files.v1';
+const STORAGE_SCOPE = String(import.meta.env.BASE_URL || '/')
+  .trim()
+  .replace(/^\/+|\/+$/g, '')
+  .replace(/[^a-zA-Z0-9_-]/g, '_') || 'root';
+
+const STORAGE_KEY_PREFIX = `spoonbill.${STORAGE_SCOPE}`;
+const DB_KEY = `${STORAGE_KEY_PREFIX}.local.db.v1`;
+const USERS_KEY = `${STORAGE_KEY_PREFIX}.local.users.v1`;
+const SESSION_KEY = `${STORAGE_KEY_PREFIX}.local.session.v1`;
+const FILES_KEY = `${STORAGE_KEY_PREFIX}.local.files.v1`;
+const LEGACY_DB_KEY = 'spoonbill.local.db.v1';
+const LEGACY_USERS_KEY = 'spoonbill.local.users.v1';
+const LEGACY_SESSION_KEY = 'spoonbill.local.session.v1';
+const LEGACY_FILES_KEY = 'spoonbill.local.files.v1';
+const LEGACY_KEY_BY_KEY: Record<string, string> = {
+  [DB_KEY]: LEGACY_DB_KEY,
+  [USERS_KEY]: LEGACY_USERS_KEY,
+  [SESSION_KEY]: LEGACY_SESSION_KEY,
+  [FILES_KEY]: LEGACY_FILES_KEY,
+};
 
 const FK_TABLE_MAP: Record<string, string> = {
   category_id: 'menu_categories',
@@ -1694,7 +1710,14 @@ const loadJson = (key: string, fallbackFactory: () => any) => {
   }
 
   try {
-    const raw = window.localStorage.getItem(key);
+    let raw = window.localStorage.getItem(key);
+    if (!raw && LEGACY_KEY_BY_KEY[key]) {
+      const legacyRaw = window.localStorage.getItem(LEGACY_KEY_BY_KEY[key]);
+      if (legacyRaw) {
+        raw = legacyRaw;
+        window.localStorage.setItem(key, legacyRaw);
+      }
+    }
     if (!raw) {
       const value = fallbackFactory();
       window.localStorage.setItem(key, JSON.stringify(value));
