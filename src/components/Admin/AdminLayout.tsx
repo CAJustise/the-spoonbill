@@ -403,9 +403,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
           ))}
         </nav>
         <div className="px-4 py-3 border-t border-gray-100 text-[11px] text-gray-500 leading-relaxed">
-          <div className="font-semibold text-gray-700">Spoonbill Eyrie</div>
-          <div>Restaurant Solutions</div>
-          <div>Copyright 2026</div>
+          <div className="font-semibold text-gray-700">Spoonbill Restaurant Solutions</div>
+          <div>&copy; 2026</div>
         </div>
       </div>
 
