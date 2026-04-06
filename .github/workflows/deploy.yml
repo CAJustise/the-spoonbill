@@ -32,6 +32,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_USE_REMOTE_SUPABASE: ${{ secrets.VITE_USE_REMOTE_SUPABASE }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: SPA fallback
         run: cp dist/index.html dist/404.html
